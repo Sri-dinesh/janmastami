@@ -1369,7 +1369,7 @@ export class VillageEnvironment {
   }
 
   public pushJhula() {
-    this.jhulaVelocity += 0.45;
+    this.jhulaVelocity += 0.38;
   }
 
   public update(time: number) {
@@ -1409,24 +1409,34 @@ export class VillageEnvironment {
       this.calfHead.rotation.z = Math.sin(time * 1.2) * 0.08;
     }
 
-    // 3. Jhula harmonic swinging physics
+    // 3. Jhula harmonic swinging physics - continuous gentle persistent breeze & pendulum dynamics
     if (this.jhulaSeat) {
-      // Natural pendulum physics: acceleration = -gravity * sin(theta) - damping * velocity
-      const gravity = 2.4;
-      const damping = 0.985;
-      this.jhulaVelocity += -gravity * Math.sin(this.jhulaAngle) * 0.016;
+      // Natural pendulum physics: acceleration = -gravity * sin(theta) - damping * velocity + persistent environmental breeze torque
+      const gravity = 2.2;
+      const damping = 0.992;
+      // Persistent harmonic breeze continuously feeds the swing so it stays gently in motion throughout the experience
+      const breezeDrive =
+        Math.sin(time * 0.92) * 0.052 +
+        Math.sin(time * 0.45 + 1.2) * 0.018 +
+        Math.cos(time * 1.85) * 0.009;
+
+      this.jhulaVelocity += (-gravity * Math.sin(this.jhulaAngle) + breezeDrive) * 0.016;
       this.jhulaVelocity *= damping;
       this.jhulaAngle += this.jhulaVelocity * 0.016;
 
-      // Ensure minimal ambient breeze swing never stops completely
-      const ambientSwing = Math.sin(time * 1.2) * 0.06;
-      this.jhulaSeat.rotation.x = this.jhulaAngle + ambientSwing;
+      // Soft natural pitch sway forward & back
+      this.jhulaSeat.rotation.x = this.jhulaAngle;
 
-      // Cute Bal Krishna subtle joyful sway with the swing motion
+      // Gentle secondary banking/roll roll sway on the ropes due to uneven breeze
+      this.jhulaSeat.rotation.z = Math.sin(time * 0.75 + 0.5) * 0.018;
+
+      // Cute Bal Krishna joyful counter-inertia and head tilt with the swing motion
       if (this.cuteKrishnaMesh) {
-        this.cuteKrishnaMesh.rotation.y = Math.sin(time * 1.5) * 0.04;
+        this.cuteKrishnaMesh.rotation.y = Math.sin(time * 1.4) * 0.06;
+        this.cuteKrishnaMesh.rotation.z = -this.jhulaSeat.rotation.z * 0.7;
       } else if (this.cuteKrishnaProcedural && this.cuteKrishnaProcedural.visible) {
-        this.cuteKrishnaProcedural.rotation.y = Math.sin(time * 1.5) * 0.04;
+        this.cuteKrishnaProcedural.rotation.y = Math.sin(time * 1.4) * 0.06;
+        this.cuteKrishnaProcedural.rotation.z = -this.jhulaSeat.rotation.z * 0.7;
       }
     }
 
