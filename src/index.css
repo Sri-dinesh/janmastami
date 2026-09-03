@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+}
+
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+.font-rozha {
+  font-family: 'Rozha One', serif;
+}
+
+.font-telugu {
+  font-family: 'Mandali', 'Noto Sans Telugu', 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-sans {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Custom festive glow and subtle effects */
+.text-glow-gold {
+  text-shadow: 0 0 25px rgba(245, 158, 11, 0.45), 0 0 50px rgba(217, 119, 6, 0.25);
+}
+
+.text-glow-krishna {
+  text-shadow: 0 0 25px rgba(56, 189, 248, 0.5), 0 0 60px rgba(14, 165, 233, 0.3);
+}
+
+/* Hide scrollbar for clean story mode while maintaining scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Krishna Janmashtami 2026",
+  "description": "An immersive 3D celebration world inspired by Krishna's childhood in Gokul and Vrindavan, featuring interactive matkis, flute melodies, decorated jhula, cows, and festive village atmosphere.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
