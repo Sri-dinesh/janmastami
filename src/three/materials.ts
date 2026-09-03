@@ -119,12 +119,37 @@ export const createStandardMaterials = () => {
       transparent: true,
       opacity: 0.4,
     }),
+    diyaClay: new THREE.MeshStandardMaterial({
+      color: COLORS.diyaClay,
+      roughness: 0.85,
+    }),
     water: new THREE.MeshStandardMaterial({
-      color: COLORS.yamunaWater,
-      roughness: 0.15,
-      metalness: 0.1,
+      color: 0x0284c7,
+      roughness: 0.06,
+      metalness: 0.22,
       transparent: true,
-      opacity: 0.88,
+      opacity: 0.92,
+      side: THREE.DoubleSide,
+    }),
+    terracotta: new THREE.MeshStandardMaterial({
+      color: 0x9a3412,
+      roughness: 0.72,
+      metalness: 0.05,
+    }),
+    jute: new THREE.MeshStandardMaterial({
+      color: 0xc8965a,
+      roughness: 0.92,
+      metalness: 0.05,
+    }),
+    brassGold: new THREE.MeshStandardMaterial({
+      color: 0xf59e0b,
+      metalness: 0.85,
+      roughness: 0.25,
+    }),
+    sandstone: new THREE.MeshStandardMaterial({
+      color: 0xd97706,
+      roughness: 0.88,
+      metalness: 0.02,
     }),
   };
 };
