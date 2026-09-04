@@ -62,6 +62,31 @@ function createProceduralMoonTexture(): THREE.CanvasTexture {
   return texture;
 }
 
+function createProceduralMoonGlowTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const grad = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.98)');
+    grad.addColorStop(0.14, 'rgba(224, 242, 254, 0.72)');
+    grad.addColorStop(0.32, 'rgba(186, 230, 253, 0.38)');
+    grad.addColorStop(0.54, 'rgba(125, 211, 252, 0.16)');
+    grad.addColorStop(0.78, 'rgba(56, 189, 248, 0.04)');
+    grad.addColorStop(1, 'rgba(14, 165, 233, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(256, 256, 256, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+// Generates an offscreen canvas texture with traditional Indian Aipan / Pithha white rice-paste folk art
+
 export class VillageEnvironment {
   public group: THREE.Group;
   private materials = createStandardMaterials();
@@ -1779,29 +1804,38 @@ export class VillageEnvironment {
     this.moonMesh.rotation.y = -0.6; // orient maria towards courtyard
     this.moonGroup.add(this.moonMesh);
 
-    // Multi-layer Celestial Moon Halos (shimmering atmospheric corona)
-    const haloConfigs = [
-      { inner: 2.22, outer: 3.8, color: 0xffffff, opacity: 0.35 },
-      { inner: 3.6, outer: 6.2, color: 0xbae6fd, opacity: 0.22 },
-      { inner: 5.8, outer: 10.5, color: 0x7dd3fc, opacity: 0.12 },
-    ];
-
-    haloConfigs.forEach((cfg) => {
-      const haloGeo = new THREE.RingGeometry(cfg.inner, cfg.outer, 36);
-      const haloMat = new THREE.MeshBasicMaterial({
-        color: cfg.color,
-        transparent: true,
-        opacity: cfg.opacity,
-        side: THREE.DoubleSide,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        fog: false,
-      });
-      const halo = new THREE.Mesh(haloGeo, haloMat);
-      halo.lookAt(new THREE.Vector3(0, 2.0, 4.0).sub(this.moonPos));
-      this.moonHalos.push(halo);
-      this.moonGroup.add(halo);
+    // Soft blurred atmospheric lunar corona (Gaussian radial falloff, zero sharp edges or concentric rings)
+    const glowTex = createProceduralMoonGlowTexture();
+    const glowGeo = new THREE.PlaneGeometry(16, 16);
+    const glowMat = new THREE.MeshBasicMaterial({
+      map: glowTex,
+      transparent: true,
+      opacity: 0.65,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      fog: false,
     });
+    const moonCorona = new THREE.Mesh(glowGeo, glowMat);
+    moonCorona.lookAt(new THREE.Vector3(0, 2.0, 4.0).sub(this.moonPos));
+    this.moonHalos.push(moonCorona);
+    this.moonGroup.add(moonCorona);
+
+    // Secondary wide outer misty aura
+    const outerGlowGeo = new THREE.PlaneGeometry(28, 28);
+    const outerGlowMat = new THREE.MeshBasicMaterial({
+      map: glowTex,
+      transparent: true,
+      opacity: 0.30,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      fog: false,
+    });
+    const outerCorona = new THREE.Mesh(outerGlowGeo, outerGlowMat);
+    outerCorona.lookAt(new THREE.Vector3(0, 2.0, 4.0).sub(this.moonPos));
+    this.moonHalos.push(outerCorona);
+    this.moonGroup.add(outerCorona);
 
     this.group.add(this.moonGroup);
 

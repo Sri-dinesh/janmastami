@@ -135,10 +135,10 @@ export class JanmashtamiWorld {
   private festivePointLight: THREE.PointLight;
   private moonSpotLight: THREE.SpotLight;
   private krishnaMoonRimLight: THREE.PointLight;
-  private moonBeamMesh: THREE.Mesh;
-  private moonBeamOuterMesh?: THREE.Mesh;
+  private moonBeamGroup: THREE.Group;
   private moonBeamMat?: THREE.ShaderMaterial;
-  private moonBeamOuterMat?: THREE.ShaderMaterial;
+  private moonBeamDust?: THREE.Points;
+  private moonDustPositions?: Float32Array;
 
   // Camera & Navigation
   private currentSceneIndex: number = 0;
@@ -270,73 +270,78 @@ export class JanmashtamiWorld {
     this.scene.add(this.krishnaMoonRimLight);
 
     // 5. Volumetric Ethereal Moonlight Rays cascading from the celestial Moon straight down to Lord Krishna
-    // Custom soft blurred crepuscular God-rays shader - completely eliminates visible cylinder edges & sharp caps
+    // Multi-angle intersecting soft-feathered fan planes with analytical Gaussian blur
+    // Completely eliminates ANY cylinder shape, sharp edges, or polygon outlines!
     const dist = moonPos.distanceTo(krishnaTargetPos);
     const dir = krishnaTargetPos.clone().sub(moonPos).normalize();
     const up = new THREE.Vector3(0, 1, 0);
     const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
     const beamCenter = moonPos.clone().lerp(krishnaTargetPos, 0.5);
 
-    const moonRayVertexShader = `
+    this.moonBeamGroup = new THREE.Group();
+    this.moonBeamGroup.position.copy(beamCenter);
+    this.moonBeamGroup.setRotationFromQuaternion(quat);
+
+    const softRayVertexShader = `
       varying vec2 vUv;
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
+      varying vec3 vWorldPosition;
 
       void main() {
         vUv = uv;
-        vNormal = normalize(normalMatrix * normal);
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        vViewPosition = -mvPosition.xyz;
-        gl_Position = projectionMatrix * mvPosition;
+        vec3 pos = position;
+        // Natural conical expansion: narrow near Moon (vUv.y=0), wider near Krishna (vUv.y=1)
+        float expansion = mix(0.45, 1.45, vUv.y);
+        pos.x *= expansion;
+
+        vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+        vWorldPosition = worldPos.xyz;
+        gl_Position = projectionMatrix * viewMatrix * worldPos;
       }
     `;
 
-    const moonRayFragmentShader = `
+    const softRayFragmentShader = `
       uniform vec3 uColor;
       uniform vec3 uCoreColor;
       uniform float uOpacity;
       uniform float uTime;
       varying vec2 vUv;
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
+      varying vec3 vWorldPosition;
 
       void main() {
-        // 1. Soft longitudinal fade: completely eliminates sharp circular cylinder caps
-        float topFade = smoothstep(0.0, 0.32, vUv.y);
-        float bottomFade = smoothstep(1.0, 0.58, vUv.y);
+        // 1. Analytical Gaussian lateral blur: falls off smoothly to 0 before geometric edge
+        float xDist = abs(vUv.x - 0.5) * 2.0; // 0 at center, 1 at edge
+        float lateralBlur = exp(-pow(xDist * 2.6, 2.0)) * smoothstep(1.0, 0.45, xDist);
+
+        // 2. Soft longitudinal fade: softly blooms from the moon and softly dissolves before ground
+        float topFade = smoothstep(0.0, 0.22, vUv.y);
+        float bottomFade = smoothstep(1.0, 0.52, vUv.y);
         float lengthFade = topFade * bottomFade;
 
-        // 2. View-dependent soft edge blurring: eliminates sharp silhouette cylinder borders
-        vec3 viewDir = normalize(vViewPosition);
-        float normalDotView = abs(dot(vNormal, viewDir));
-        float edgeBlur = pow(clamp(normalDotView, 0.0, 1.0), 1.6);
-
-        // 3. Multi-frequency crepuscular God-ray light shafts (celestial moonbeams)
-        float angle = vUv.x * 6.283185;
-        float rayShafts = sin(angle * 7.0 + uTime * 0.35) * 0.22
-                        + sin(angle * 15.0 - uTime * 0.2) * 0.12
-                        + cos(angle * 3.0 + uTime * 0.12) * 0.18
-                        + 0.85;
+        // 3. Multi-frequency crepuscular God-ray light shafts (celestial moonbeam streamers)
+        float shaft1 = sin((vUv.x + uTime * 0.035) * 26.0) * 0.22;
+        float shaft2 = cos((vUv.x - uTime * 0.02 + vUv.y * 0.35) * 15.0) * 0.18;
+        float shaft3 = sin((vUv.x * 2.0 + uTime * 0.06) * 8.0) * 0.14;
+        float godRays = clamp(0.72 + shaft1 + shaft2 + shaft3, 0.0, 1.35);
 
         // 4. Subtle shimmer pulse
-        float pulse = 0.94 + 0.06 * sin(uTime * 1.5 + vUv.y * 3.1415);
+        float shimmer = 0.94 + 0.06 * sin(uTime * 1.6 + vUv.y * 3.1415);
 
-        float alpha = uOpacity * lengthFade * edgeBlur * rayShafts * pulse;
-        vec3 col = mix(uColor, uCoreColor, clamp(edgeBlur * 0.75, 0.0, 1.0));
+        float alpha = uOpacity * lateralBlur * lengthFade * godRays * shimmer;
+
+        // Radiant luminous core blending to misty lunar cyan-blue
+        vec3 col = mix(uColor, uCoreColor, clamp(lateralBlur * 1.3 - 0.2, 0.0, 1.0));
 
         gl_FragColor = vec4(col, alpha);
       }
     `;
 
-    // 5a. Primary soft volumetric God-ray cone
-    const beamGeo = new THREE.CylinderGeometry(0.8, 3.6, dist, 64, 32, true);
     this.moonBeamMat = new THREE.ShaderMaterial({
-      vertexShader: moonRayVertexShader,
-      fragmentShader: moonRayFragmentShader,
+      vertexShader: softRayVertexShader,
+      fragmentShader: softRayFragmentShader,
       uniforms: {
         uColor: { value: new THREE.Color(0x93c5fd) },
         uCoreColor: { value: new THREE.Color(0xffffff) },
-        uOpacity: { value: 0.28 },
+        uOpacity: { value: 0.24 },
         uTime: { value: 0 },
       },
       transparent: true,
@@ -345,32 +350,57 @@ export class JanmashtamiWorld {
       depthWrite: false,
       fog: false,
     });
-    this.moonBeamMesh = new THREE.Mesh(beamGeo, this.moonBeamMat);
-    this.moonBeamMesh.position.copy(beamCenter);
-    this.moonBeamMesh.setRotationFromQuaternion(quat);
-    this.scene.add(this.moonBeamMesh);
 
-    // 5b. Outer diffused atmospheric mist halo (wider, ultra-soft feathered glow)
-    const outerGeo = new THREE.CylinderGeometry(1.5, 6.2, dist, 48, 16, true);
-    this.moonBeamOuterMat = new THREE.ShaderMaterial({
-      vertexShader: moonRayVertexShader,
-      fragmentShader: moonRayFragmentShader,
-      uniforms: {
-        uColor: { value: new THREE.Color(0x60a5fa) },
-        uCoreColor: { value: new THREE.Color(0xc7d2fe) },
-        uOpacity: { value: 0.12 },
-        uTime: { value: 0 },
-      },
+    // 8 intersecting fan planes spanning 180 degrees create a seamless, blurred volumetric ray shaft from every angle
+    const rayPlaneGeo = new THREE.PlaneGeometry(5.6, dist, 1, 32);
+    for (let i = 0; i < 8; i++) {
+      const plane = new THREE.Mesh(rayPlaneGeo, this.moonBeamMat);
+      plane.rotation.y = (i / 8) * Math.PI;
+      this.moonBeamGroup.add(plane);
+    }
+
+    // Celestial moonlight dust motes slowly drifting inside the rays
+    const dustCount = 36;
+    const dustGeo = new THREE.BufferGeometry();
+    this.moonDustPositions = new Float32Array(dustCount * 3);
+    for (let i = 0; i < dustCount; i++) {
+      const radius = 0.3 + Math.random() * 1.8;
+      const angle = Math.random() * Math.PI * 2;
+      this.moonDustPositions[i * 3] = Math.cos(angle) * radius;
+      this.moonDustPositions[i * 3 + 1] = (Math.random() - 0.5) * dist;
+      this.moonDustPositions[i * 3 + 2] = Math.sin(angle) * radius;
+    }
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(this.moonDustPositions, 3));
+
+    // Canvas particle texture for smooth soft circular motes
+    const moteCanvas = document.createElement('canvas');
+    moteCanvas.width = 32;
+    moteCanvas.height = 32;
+    const moteCtx = moteCanvas.getContext('2d');
+    if (moteCtx) {
+      const grad = moteCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
+      grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+      grad.addColorStop(0.4, 'rgba(219, 234, 254, 0.5)');
+      grad.addColorStop(1, 'rgba(147, 197, 253, 0)');
+      moteCtx.fillStyle = grad;
+      moteCtx.beginPath();
+      moteCtx.arc(16, 16, 16, 0, Math.PI * 2);
+      moteCtx.fill();
+    }
+    const moteTex = new THREE.CanvasTexture(moteCanvas);
+
+    const dustMat = new THREE.PointsMaterial({
+      size: 0.18,
+      map: moteTex,
       transparent: true,
       blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide,
       depthWrite: false,
-      fog: false,
+      opacity: 0.45,
     });
-    this.moonBeamOuterMesh = new THREE.Mesh(outerGeo, this.moonBeamOuterMat);
-    this.moonBeamOuterMesh.position.copy(beamCenter);
-    this.moonBeamOuterMesh.setRotationFromQuaternion(quat);
-    this.scene.add(this.moonBeamOuterMesh);
+    this.moonBeamDust = new THREE.Points(dustGeo, dustMat);
+    this.moonBeamGroup.add(this.moonBeamDust);
+
+    this.scene.add(this.moonBeamGroup);
 
     // 6. Golden festive point light near Krishna & courtyard (balances moonlight with sacred diya warmth)
     this.festivePointLight = new THREE.PointLight(0xf59e0b, 1.8, 12);
@@ -585,17 +615,24 @@ export class JanmashtamiWorld {
     this.village.update(time);
     this.particles.update(time);
 
-    // 1b. Animate celestial moonbeam shimmer and spotlight radiance
+    // 1b. Animate celestial moonbeam shimmer, drifting dust motes, and soft spotlight
     if (this.moonBeamMat) {
       this.moonBeamMat.uniforms.uTime.value = time;
-      this.moonBeamMat.uniforms.uOpacity.value = 0.28 + Math.sin(time * 1.4) * 0.04;
+      this.moonBeamMat.uniforms.uOpacity.value = 0.24 + Math.sin(time * 1.4) * 0.035;
     }
-    if (this.moonBeamOuterMat) {
-      this.moonBeamOuterMat.uniforms.uTime.value = time;
-      this.moonBeamOuterMat.uniforms.uOpacity.value = 0.12 + Math.sin(time * 1.1) * 0.025;
+    if (this.moonBeamDust && this.moonDustPositions) {
+      const posAttr = this.moonBeamDust.geometry.attributes.position as THREE.BufferAttribute;
+      const count = posAttr.count;
+      for (let i = 0; i < count; i++) {
+        let y = posAttr.getY(i);
+        y -= 0.012; // slow drift downwards towards Krishna
+        if (y < -9.0) y = 9.0;
+        posAttr.setY(i, y);
+      }
+      posAttr.needsUpdate = true;
     }
     if (this.moonSpotLight) {
-      this.moonSpotLight.intensity = 4.2 + Math.sin(time * 1.5) * 0.35;
+      this.moonSpotLight.intensity = 3.8 + Math.sin(time * 1.5) * 0.3;
     }
 
     // 2. Camera Motion
