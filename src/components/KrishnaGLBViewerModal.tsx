@@ -258,11 +258,11 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
         root.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
         if (modelType === 'krisha-flute') {
-          // Graceful tilt showing off carvings and tassels
-          root.rotation.set(0.18, 0.25, 0.35);
+          // Standing vertically upright
+          root.rotation.set(0.0, 0.25, 0.0);
           root.position.x = -center.x * scaleFactor;
           root.position.z = -center.z * scaleFactor;
-          root.position.y = -box.min.y * scaleFactor + 0.35;
+          root.position.y = -box.min.y * scaleFactor + 0.18;
         } else {
           // Center on X and Z, set base right on top of lotus pedestal
           root.position.x = -center.x * scaleFactor;

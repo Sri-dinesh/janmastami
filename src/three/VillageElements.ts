@@ -1756,63 +1756,107 @@ export class VillageEnvironment {
     cushionPiping.position.y = 0.28;
     this.fluteGroup.add(cushionPiping);
 
-    // 3. Golden Swan / Cradle Risers holding the Flute
-    [-0.22, 0.22].forEach((rx, idx) => {
-      const riserHeight = idx === 0 ? 0.12 : 0.16; // 8-degree diagonal tilt
-      const riser = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.024, 0.038, riserHeight, 12),
-        this.materials.brassGold
-      );
-      riser.position.set(rx, 0.31 + riserHeight * 0.5, 0);
-      riser.castShadow = true;
-      this.fluteGroup.add(riser);
+    // 3. Consecrated Standing Golden Lotus Socket (Bansuri Asana)
+    const socketGroup = new THREE.Group();
+    socketGroup.position.set(0, 0.31, 0);
 
-      const cradleCup = new THREE.Mesh(
-        new THREE.TorusGeometry(0.042, 0.012, 6, 16, Math.PI),
-        this.materials.brassGold
-      );
-      cradleCup.position.set(rx, 0.31 + riserHeight, 0);
-      this.fluteGroup.add(cradleCup);
-    });
-
-    // 4. Sacred Flute Container & Loader
-    const fluteContainer = new THREE.Group();
-    fluteContainer.name = 'KrishnaFlute';
-    fluteContainer.position.set(0, 0.45, 0);
-    this.fluteGroup.add(fluteContainer);
-
-    // Procedural majestic golden bansuri placeholder
-    const proceduralBansuri = new THREE.Group();
-    proceduralBansuri.name = 'ProceduralFlute';
-    const fluteStem = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.022, 0.020, 1.05, 16).rotateZ(Math.PI / 2),
+    // Golden chalice base
+    const chaliceBase = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.10, 0.15, 0.08, 16),
       this.materials.brassGold
     );
+    chaliceBase.position.y = 0.04;
+    chaliceBase.castShadow = true;
+    socketGroup.add(chaliceBase);
+
+    const chaliceRim = new THREE.Mesh(
+      new THREE.TorusGeometry(0.11, 0.016, 8, 20),
+      this.materials.zariGold
+    );
+    chaliceRim.rotation.x = Math.PI / 2;
+    chaliceRim.position.y = 0.08;
+    socketGroup.add(chaliceRim);
+
+    // 8 upward-curving golden lotus petals cupping the base of the standing flute
+    for (let p = 0; p < 8; p++) {
+      const pAngle = (p / 8) * Math.PI * 2;
+      const petal = new THREE.Mesh(
+        new THREE.SphereGeometry(0.045, 8, 8).scale(0.55, 1.35, 0.35),
+        this.materials.zariGold
+      );
+      petal.rotation.y = pAngle;
+      petal.rotation.x = 0.28;
+      petal.position.set(Math.cos(pAngle) * 0.095, 0.07, Math.sin(pAngle) * 0.095);
+      petal.castShadow = true;
+      socketGroup.add(petal);
+    }
+
+    // Two flanking golden ornamental brackets
+    [-0.18, 0.18].forEach((bx, bidx) => {
+      const bracket = new THREE.Mesh(
+        new THREE.TorusGeometry(0.08, 0.015, 8, 16, Math.PI * 0.8),
+        this.materials.brassGold
+      );
+      bracket.position.set(bx, 0.08, 0);
+      bracket.rotation.z = bidx === 0 ? 0.3 : -0.3;
+      bracket.rotation.y = Math.PI / 2;
+      socketGroup.add(bracket);
+    });
+
+    this.fluteGroup.add(socketGroup);
+
+    // 4. Sacred Flute Container & Loader (Standing Vertically)
+    const fluteContainer = new THREE.Group();
+    fluteContainer.name = 'KrishnaFlute';
+    fluteContainer.position.set(0, 0.38, 0);
+    this.fluteGroup.add(fluteContainer);
+
+    // Procedural majestic golden bansuri placeholder (standing upright)
+    const proceduralBansuri = new THREE.Group();
+    proceduralBansuri.name = 'ProceduralFlute';
+
+    const fluteStem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.022, 0.018, 1.28, 16),
+      this.materials.brassGold
+    );
+    fluteStem.position.y = 0.64;
     fluteStem.castShadow = true;
     proceduralBansuri.add(fluteStem);
 
-    // Peacock feather ornament on blowing end
+    // Finger holes along vertical shaft facing front
+    const holeMat = new THREE.MeshBasicMaterial({ color: 0x1c1917 });
+    for (let h = 0; h < 6; h++) {
+      const hole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.007, 0.007, 0.045, 8).rotateX(Math.PI / 2),
+        holeMat
+      );
+      hole.position.set(0, 0.35 + h * 0.11, 0.018);
+      proceduralBansuri.add(hole);
+    }
+
+    // Peacock feather plume crowning the top of the vertical flute
     const feather = new THREE.Mesh(
-      new THREE.SphereGeometry(0.14, 8, 8).scale(0.5, 1.4, 0.1),
+      new THREE.SphereGeometry(0.16, 8, 8).scale(0.65, 1.5, 0.1),
       this.materials.peacockTeal
     );
-    feather.position.set(-0.50, 0.12, 0);
-    feather.rotation.z = 0.4;
+    feather.position.set(0.04, 1.34, 0);
+    feather.rotation.z = -0.22;
     proceduralBansuri.add(feather);
 
-    // Crimson and golden tassels
+    // Crimson and golden tassels hanging down from upper crest
     for (let t = 0; t < 2; t++) {
       const tassel = new THREE.Mesh(
-        new THREE.ConeGeometry(0.035, 0.18, 8),
+        new THREE.ConeGeometry(0.032, 0.22, 8),
         t === 0 ? this.materials.crimsonVelvet : this.materials.zariGold
       );
-      tassel.position.set(0.48 + t * 0.04, -0.10, 0);
+      tassel.position.set(0.08 + t * 0.04, 1.10 - t * 0.05, 0.02);
       proceduralBansuri.add(tassel);
     }
-    proceduralBansuri.rotation.set(0.12, 0.20, -0.10);
+
+    proceduralBansuri.rotation.set(0.03, 0.22, 0.0);
     fluteContainer.add(proceduralBansuri);
 
-    // Asynchronous GLB Loader for public/krisha-flute.glb
+    // Asynchronous GLB Loader for public/krisha-flute.glb (standing upright)
     const loader = new GLTFLoader();
     const applyFluteGLB = (model: THREE.Group) => {
       model.name = 'KrishnaFluteModel';
@@ -1822,13 +1866,13 @@ export class VillageEnvironment {
       const center = new THREE.Vector3();
       box.getCenter(center);
 
-      // Desired length ~1.12 units
-      const maxDim = Math.max(size.x, size.y, size.z) || 1.0;
-      const targetScale = 1.12 / maxDim;
+      // Desired vertical height ~1.38 units
+      const targetHeight = 1.38;
+      const scaleFactor = targetHeight / (size.y || 1.0);
 
       const innerGroup = new THREE.Group();
-      // Center model at origin
-      model.position.set(-center.x, -center.y, -center.z);
+      // Center model on X and Z, align bottom of model with y = 0 of container
+      model.position.set(-center.x, -box.min.y, -center.z);
       model.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
@@ -1848,10 +1892,10 @@ export class VillageEnvironment {
         }
       });
       innerGroup.add(model);
-      innerGroup.scale.setScalar(targetScale);
+      innerGroup.scale.setScalar(scaleFactor);
 
-      // Orientation: original model is vertical along Y. Rotate along Z so it lies horizontally along X
-      innerGroup.rotation.set(0.14, 0.22, Math.PI / 2 - 0.10);
+      // Standing vertically upright with gentle regal front-facing orientation
+      innerGroup.rotation.set(0.03, 0.25, 0.0);
 
       fluteContainer.add(innerGroup);
       this.fluteModel = innerGroup;
@@ -1918,16 +1962,16 @@ export class VillageEnvironment {
       this.fluteGroup.add(petal);
     }
 
-    // 7. Ethereal Golden Aura & Halo Ring
-    this.fluteAltarLight = new THREE.PointLight(0xfef08a, 1.5, 4.2);
-    this.fluteAltarLight.position.set(0, 0.65, 0);
+    // 7. Ethereal Golden Aura & Halo Ring encircling the vertical flute
+    this.fluteAltarLight = new THREE.PointLight(0xfef08a, 1.6, 4.5);
+    this.fluteAltarLight.position.set(0, 1.25, 0.25);
     this.fluteGroup.add(this.fluteAltarLight);
 
     this.fluteAuraRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.48, 0.010, 8, 36),
-      new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.55 })
+      new THREE.TorusGeometry(0.38, 0.010, 8, 36),
+      new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.65 })
     );
-    this.fluteAuraRing.position.set(0, 0.52, 0);
+    this.fluteAuraRing.position.set(0, 1.15, 0);
     this.fluteAuraRing.rotation.x = Math.PI / 2;
     this.fluteGroup.add(this.fluteAuraRing);
 
