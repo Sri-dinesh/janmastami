@@ -87,6 +87,116 @@ function createProceduralMoonGlowTexture(): THREE.CanvasTexture {
 
 // Generates an offscreen canvas texture with traditional Indian Aipan / Pithha white rice-paste folk art
 
+function createYamunaWaterMaterial(moonPos: THREE.Vector3): THREE.ShaderMaterial {
+  const moonDir = moonPos.clone().normalize();
+  return new THREE.ShaderMaterial({
+    vertexShader: `
+      uniform float uTime;
+      varying vec2 vUv;
+      varying vec3 vWorldPosition;
+      varying vec3 vNormal;
+      varying float vWaveHeight;
+
+      void main() {
+        vUv = uv;
+        vec3 pos = position;
+
+        // Flowing downstream along X with smooth multi-frequency waves
+        float flow = pos.x * 0.32 + pos.z * 0.18 - uTime * 1.5;
+        float cross = pos.x * 0.75 - pos.z * 0.42 + uTime * 2.1;
+        float chop = pos.x * 1.85 + pos.z * 1.25 - uTime * 3.2;
+
+        float wave1 = sin(flow) * 0.048;
+        float wave2 = cos(cross) * 0.024;
+        float wave3 = sin(chop) * 0.012;
+        float totalWave = wave1 + wave2 + wave3;
+
+        pos.y += totalWave;
+        vWaveHeight = totalWave;
+
+        // Analytical wave normal
+        float dYdX = (cos(flow) * 0.32 * 0.048 - sin(cross) * 0.75 * 0.024 + cos(chop) * 1.85 * 0.012);
+        float dYdZ = (cos(flow) * 0.18 * 0.048 + sin(cross) * 0.42 * 0.024 + cos(chop) * 1.25 * 0.012);
+        vec3 waveNorm = normalize(vec3(-dYdX, 1.0, -dYdZ));
+        vNormal = normalize(normalMatrix * waveNorm);
+
+        vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+        vWorldPosition = worldPos.xyz;
+        gl_Position = projectionMatrix * viewMatrix * worldPos;
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      uniform vec3 uDeepColor;
+      uniform vec3 uSurfaceColor;
+      uniform vec3 uCrestColor;
+      uniform vec3 uFoamColor;
+      uniform vec3 uMoonDirection;
+      uniform vec3 uMoonColor;
+      varying vec2 vUv;
+      varying vec3 vWorldPosition;
+      varying vec3 vNormal;
+      varying float vWaveHeight;
+
+      void main() {
+        vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+
+        // Dynamic micro-ripples
+        float rip1 = sin(vWorldPosition.x * 4.5 + vWorldPosition.z * 3.2 - uTime * 2.8);
+        float rip2 = cos(vWorldPosition.x * 7.2 - vWorldPosition.z * 5.1 + uTime * 3.4);
+        float microRipples = (rip1 + rip2) * 0.06;
+
+        vec3 normal = normalize(vNormal + vec3(microRipples * 0.5, 0.0, microRipples * 0.5));
+
+        // Fresnel reflection
+        float NdotV = max(dot(normal, viewDir), 0.0);
+        float fresnel = pow(1.0 - NdotV, 3.2);
+
+        // Silvery moon specular reflection
+        vec3 lightDir = normalize(uMoonDirection);
+        vec3 halfVector = normalize(lightDir + viewDir);
+        float NdotH = max(dot(normal, halfVector), 0.0);
+        float moonSpecular = pow(NdotH, 64.0) * 1.35;
+        float broadSpecular = pow(NdotH, 14.0) * 0.32;
+
+        // Water depth & wave crest gradient
+        vec3 waterCol = mix(uDeepColor, uSurfaceColor, clamp((vWaveHeight + 0.06) * 8.0, 0.0, 1.0));
+        waterCol = mix(waterCol, uCrestColor, clamp(vWaveHeight * 12.0, 0.0, 0.45));
+
+        // Shoreline soft foam along sandstone ghat steps
+        float shoreDistance = smoothstep(0.85, 1.0, vUv.y);
+        float foamWave = sin(vWorldPosition.x * 2.2 - uTime * 2.0) * 0.5 + 0.5;
+        float foamIntensity = shoreDistance * foamWave * 0.65;
+        waterCol = mix(waterCol, uFoamColor, foamIntensity);
+
+        // Final color blending with silvery lunar glow
+        vec3 finalCol = mix(waterCol, uMoonColor, fresnel * 0.55);
+        finalCol += uMoonColor * (moonSpecular + broadSpecular);
+
+        // Silvery sparkle
+        float shimmer = sin(vWorldPosition.x * 12.0 + uTime * 4.0) * cos(vWorldPosition.z * 10.0 - uTime * 3.5);
+        finalCol += uMoonColor * max(0.0, shimmer) * 0.08;
+
+        float alpha = clamp(0.88 + fresnel * 0.12 + foamIntensity * 0.2, 0.78, 0.98);
+        gl_FragColor = vec4(finalCol, alpha);
+      }
+    `,
+    uniforms: {
+      uTime: { value: 0 },
+      uDeepColor: { value: new THREE.Color(0x02284d) },
+      uSurfaceColor: { value: new THREE.Color(0x0284c7) },
+      uCrestColor: { value: new THREE.Color(0x38bdf8) },
+      uFoamColor: { value: new THREE.Color(0xf0f9ff) },
+      uMoonDirection: { value: moonDir },
+      uMoonColor: { value: new THREE.Color(0xdbeafe) },
+    },
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+}
+
+
 export class VillageEnvironment {
   public group: THREE.Group;
   private materials = createStandardMaterials();
@@ -111,6 +221,7 @@ export class VillageEnvironment {
   public diyaLights: THREE.PointLight[] = [];
   public lotusBlossoms: THREE.Group[] = [];
   public lotusData: Array<{ group: THREE.Group; baseX: number; baseZ: number; phase: number }> = [];
+  public waterMaterial?: THREE.ShaderMaterial;
   public waterMesh: THREE.Mesh;
   public waterGeometry: THREE.PlaneGeometry;
   public waterInitialPositions: Float32Array;
@@ -188,30 +299,54 @@ export class VillageEnvironment {
   }
 
   private createTerrain() {
-    // Courtyard & village earth
-    const groundGeo = new THREE.CylinderGeometry(28, 30, 1.2, 48);
     const groundMat = new THREE.MeshStandardMaterial({
       color: 0x271e16,
       roughness: 0.95,
       metalness: 0.0,
     });
-    const groundMesh = new THREE.Mesh(groundGeo, groundMat);
-    groundMesh.position.y = -0.6;
-    groundMesh.receiveShadow = true;
-    this.group.add(groundMesh);
+    const grassBankMat = new THREE.MeshStandardMaterial({
+      color: 0x16301a,
+      roughness: 0.92,
+    });
 
-    // Stone pathway tiles leading through village to Krishna
+    // 1. Village Courtyard Earth Platform (terminates cleanly at z = -7.5 where the Yamuna Ghat begins)
+    const courtyardGeo = new THREE.BoxGeometry(46, 1.2, 29);
+    const courtyardMesh = new THREE.Mesh(courtyardGeo, groundMat);
+    courtyardMesh.position.set(0, -0.6, 7.0);
+    courtyardMesh.receiveShadow = true;
+    this.group.add(courtyardMesh);
+
+    // Rounded soft grassy mounds framing the left and right courtyard flanks
+    const leftMoundGeo = new THREE.CylinderGeometry(8, 12, 1.1, 24);
+    const leftMound = new THREE.Mesh(leftMoundGeo, grassBankMat);
+    leftMound.position.set(-19, -0.55, 6);
+    leftMound.receiveShadow = true;
+    this.group.add(leftMound);
+
+    const rightMound = new THREE.Mesh(leftMoundGeo, grassBankMat);
+    rightMound.position.set(19, -0.55, 6);
+    rightMound.receiveShadow = true;
+    this.group.add(rightMound);
+
+    // 2. Distant North Bank of Yamuna (behind the river, framing the sacred Govardhan hills)
+    const northBankGeo = new THREE.BoxGeometry(58, 1.6, 12);
+    const northBank = new THREE.Mesh(northBankGeo, grassBankMat);
+    northBank.position.set(0, -0.3, -30);
+    northBank.receiveShadow = true;
+    this.group.add(northBank);
+
+    // 3. Stone pathway tiles leading through village to Krishna
     const pathMat = new THREE.MeshStandardMaterial({
       color: 0x4a3b32,
       roughness: 0.85,
     });
-    for (let i = 0; i < 22; i++) {
-      const z = -9 + i * 0.9;
-      const x = Math.sin(i * 0.4) * 0.8;
-      const stoneGeo = new THREE.BoxGeometry(1.2 + (i % 3) * 0.2, 0.08, 0.7);
+    for (let i = 0; i < 20; i++) {
+      const z = -7.0 + i * 0.85;
+      const x = Math.sin(i * 0.45) * 0.75;
+      const stoneGeo = new THREE.BoxGeometry(1.2 + (i % 3) * 0.15, 0.08, 0.65);
       const stone = new THREE.Mesh(stoneGeo, pathMat);
       stone.position.set(x, 0.04, z);
-      stone.rotation.y = (Math.random() - 0.5) * 0.2;
+      stone.rotation.y = (Math.sin(i * 1.3)) * 0.15;
       stone.receiveShadow = true;
       this.group.add(stone);
     }
@@ -1378,7 +1513,7 @@ export class VillageEnvironment {
     for (let step = 0; step < 3; step++) {
       const stepZ = -7.6 - step * 0.55;
       const stepY = 0.02 - step * 0.08;
-      const stepGeo = new THREE.BoxGeometry(44, 0.14, 0.65);
+      const stepGeo = new THREE.BoxGeometry(52, 0.14, 0.65);
       const stepMesh = new THREE.Mesh(stepGeo, ghatMat);
       stepMesh.position.set(0, stepY, stepZ);
       stepMesh.receiveShadow = true;
@@ -1386,7 +1521,7 @@ export class VillageEnvironment {
     }
 
     // Ghat Carved Pilasters & Stone Lantern Shrines (Deepa-stambha) along the embankment
-    const pilasterPositions = [-18, -10, -3, 5, 12, 19];
+    const pilasterPositions = [-20, -12, -4, 4, 12, 20];
     pilasterPositions.forEach((px) => {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.95, 8), ghatMat);
       post.position.set(px, 0.35, -7.5);
@@ -1414,33 +1549,34 @@ export class VillageEnvironment {
     });
 
     // Riverbank natural smooth stones & pebbles along the water's edge
-    for (let s = 0; s < 28; s++) {
+    for (let s = 0; s < 32; s++) {
       const stoneGeo = new THREE.DodecahedronGeometry(0.14 + (s % 4) * 0.08, 1);
       const stoneMat = new THREE.MeshStandardMaterial({ color: 0x3e3228, roughness: 0.85 });
       const stone = new THREE.Mesh(stoneGeo, stoneMat);
-      stone.position.set(-20 + s * 1.45 + (Math.sin(s) * 0.4), -0.05, -8.9 + Math.cos(s * 1.5) * 0.45);
+      stone.position.set(-24 + s * 1.55 + (Math.sin(s) * 0.4), -0.06, -8.9 + Math.cos(s * 1.5) * 0.45);
       stone.scale.set(1.2, 0.5, 0.9);
       riverGroup.add(stone);
     }
 
     // 2. Riverbed beneath water
-    const riverbedGeo = new THREE.PlaneGeometry(54, 26);
+    const riverbedGeo = new THREE.PlaneGeometry(58, 22);
     riverbedGeo.rotateX(-Math.PI / 2);
-    const riverbedMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.95 });
+    const riverbedMat = new THREE.MeshStandardMaterial({ color: 0x07152b, roughness: 0.96 });
     const riverbed = new THREE.Mesh(riverbedGeo, riverbedMat);
-    riverbed.position.set(0, -0.32, -15.5);
+    riverbed.position.set(0, -0.45, -17.5);
     riverbed.receiveShadow = true;
     riverGroup.add(riverbed);
 
-    // 3. Dynamic Flowing Yamuna Water Mesh (high subdivision for smooth vertex waves)
-    this.waterGeometry = new THREE.PlaneGeometry(54, 24, 140, 60);
+    // 3. Dynamic Flowing Yamuna Water Mesh with Custom Shader
+    this.waterGeometry = new THREE.PlaneGeometry(58, 22, 120, 50);
     this.waterGeometry.rotateX(-Math.PI / 2);
-    this.waterMesh = new THREE.Mesh(this.waterGeometry, this.materials.water);
-    this.waterMesh.position.set(0, 0.08, -15.5);
+    this.waterMaterial = createYamunaWaterMaterial(this.moonPos);
+    this.waterMesh = new THREE.Mesh(this.waterGeometry, this.waterMaterial);
+    this.waterMesh.position.set(0, 0.02, -17.5);
     this.waterMesh.receiveShadow = true;
     riverGroup.add(this.waterMesh);
 
-    // Cache initial vertex positions for dynamic wave simulation
+    // Cache initial vertex positions for safety
     this.waterInitialPositions = new Float32Array(this.waterGeometry.attributes.position.array);
 
     // 4. Sacred Nelumbo Lotuses (Kamal) floating on Yamuna
@@ -1457,7 +1593,7 @@ export class VillageEnvironment {
 
     lotusPositions.forEach(([lx, lz], idx) => {
       const lotus = this.createLotusBlossom();
-      lotus.position.set(lx, 0.08, lz);
+      lotus.position.set(lx, 0.02, lz);
       this.lotusBlossoms.push(lotus);
       this.lotusData.push({
         group: lotus,
@@ -1480,7 +1616,7 @@ export class VillageEnvironment {
 
     diyaPositions.forEach(([dx, dz, spd], dIdx) => {
       const floatingDiyaGroup = new THREE.Group();
-      floatingDiyaGroup.position.set(dx, 0.08, dz);
+      floatingDiyaGroup.position.set(dx, 0.02, dz);
 
       // Green river leaf boat (Pattal)
       const leafGeo = new THREE.CylinderGeometry(0.24, 0.18, 0.025, 12);
@@ -1883,64 +2019,68 @@ export class VillageEnvironment {
   private createHangingLanterns() {
     // 1. Mud House 1 (Left background mud house veranda)
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(new THREE.Vector3(-6.5, 2.4, -2.1), 0.35, 0xffa439, 1.15, 5.5, 1)
+      this.createSingleHangingLantern(new THREE.Vector3(-6.5, 2.4, -2.1), 0.35, 0xffa439, 1.25, 5.8, 1)
     );
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(new THREE.Vector3(-4.5, 2.4, -2.3), 0.38, 0xfbbf24, 1.1, 5.2, 2)
+      this.createSingleHangingLantern(new THREE.Vector3(-4.5, 2.4, -2.3), 0.38, 0xfbbf24, 1.2, 5.5, 2)
     );
 
     // 2. Mud House 2 (Right background mud house veranda)
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(new THREE.Vector3(5.1, 2.5, -1.2), 0.35, 0xf59e0b, 1.2, 5.8, 3)
+      this.createSingleHangingLantern(new THREE.Vector3(5.2, 2.5, -1.2), 0.35, 0xf59e0b, 1.3, 6.0, 3)
     );
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(new THREE.Vector3(7.3, 2.5, -1.6), 0.38, 0xffaa33, 1.15, 5.4, 4)
+      this.createSingleHangingLantern(new THREE.Vector3(7.3, 2.5, -1.6), 0.38, 0xffaa33, 1.2, 5.6, 4)
     );
 
     // 3. Mud House 3 (Far left mud house veranda)
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(new THREE.Vector3(-7.8, 2.35, 2.3), 0.32, 0xf59e0b, 1.05, 5.0, 5)
+      this.createSingleHangingLantern(new THREE.Vector3(-7.8, 2.35, 2.3), 0.32, 0xf59e0b, 1.15, 5.2, 5)
+    );
+    this.hangingLanterns.push(
+      this.createSingleHangingLantern(new THREE.Vector3(-6.4, 2.35, 3.8), 0.36, 0xfbbf24, 1.15, 5.4, 6)
     );
 
-    // 4. Butter Matki Scene (Strung on the wooden tripod beam)
+    // 4. Butter Matki Scene (Hanging on the outer timber rafter ends, clear of Krishna)
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(new THREE.Vector3(-3.2, 2.65, 1.2), 0.36, 0xfef08a, 1.25, 5.8, 6)
+      this.createSingleHangingLantern(new THREE.Vector3(-3.4, 2.65, 1.2), 0.36, 0xfef08a, 1.3, 6.0, 7)
     );
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(new THREE.Vector3(-1.3, 2.6, 1.45), 0.42, 0xfbbf24, 1.15, 5.2, 7)
-    );
-
-    // 5. Vrindavan Jhula Swing Canopy (Floral swing arch posts)
-    this.hangingLanterns.push(
-      this.createSingleHangingLantern(new THREE.Vector3(-1.5, 2.7, -4.8), 0.4, 0xfef08a, 1.3, 5.5, 8)
-    );
-    this.hangingLanterns.push(
-      this.createSingleHangingLantern(new THREE.Vector3(1.5, 2.7, -4.8), 0.4, 0xfef08a, 1.3, 5.5, 9)
+      this.createSingleHangingLantern(new THREE.Vector3(-2.4, 2.75, 0.4), 0.38, 0xfbbf24, 1.2, 5.5, 8)
     );
 
-    // 6. Sacred Gomati Cow & Calf Scene (Rustic post beside the shelter)
-    const cowPostHook = this.createRusticLanternPost(3.4, 2.7, 2.45);
+    // 5. Vrindavan Jhula Swing Canopy (Back floral swing arch posts)
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(cowPostHook, 0.35, 0xffa439, 1.15, 5.6, 10)
+      this.createSingleHangingLantern(new THREE.Vector3(-1.8, 2.7, -4.8), 0.4, 0xfef08a, 1.35, 5.8, 9)
+    );
+    this.hangingLanterns.push(
+      this.createSingleHangingLantern(new THREE.Vector3(1.8, 2.7, -4.8), 0.4, 0xfef08a, 1.35, 5.8, 10)
     );
 
-    // 7. Sacred Yamuna River Embankment (Rustic riverside mooring lantern posts)
-    const yamunaLeftHook = this.createRusticLanternPost(-2.8, -7.8, 2.05);
-    const yamunaRightHook = this.createRusticLanternPost(2.8, -7.8, 2.05);
+    // 6. Sacred Gomati Cow & Calf Scene (Rustic post safely to the outer right flank)
+    const cowPostHook = this.createRusticLanternPost(5.6, 2.2, 2.8);
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(yamunaLeftHook, 0.38, 0xf59e0b, 1.2, 6.0, 11)
-    );
-    this.hangingLanterns.push(
-      this.createSingleHangingLantern(yamunaRightHook, 0.38, 0xfbbf24, 1.2, 6.0, 12)
+      this.createSingleHangingLantern(cowPostHook, 0.38, 0xffa439, 1.35, 6.2, 11)
     );
 
-    // 8. Central Courtyard / Kadamba Tree Branch
-    const courtyardHook = this.createRusticLanternPost(-0.2, 3.4, 2.75);
+    // 7. Sacred Yamuna River Embankment (Outer lateral ghat corners)
+    const yamunaLeftHook = this.createRusticLanternPost(-5.8, -7.8, 2.2);
+    const yamunaRightHook = this.createRusticLanternPost(5.8, -7.8, 2.2);
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(courtyardHook, 0.42, 0xffaa33, 1.25, 6.2, 13)
+      this.createSingleHangingLantern(yamunaLeftHook, 0.38, 0xf59e0b, 1.3, 6.5, 12)
     );
     this.hangingLanterns.push(
-      this.createSingleHangingLantern(new THREE.Vector3(1.6, 2.6, 0.9), 0.38, 0xfef08a, 1.1, 5.4, 14)
+      this.createSingleHangingLantern(yamunaRightHook, 0.38, 0xfbbf24, 1.3, 6.5, 13)
+    );
+
+    // 8. Courtyard Pathway Outer Flanks (Framing the village pathway on both sides, center line clear)
+    const leftFlankHook = this.createRusticLanternPost(-3.8, 4.4, 2.8);
+    this.hangingLanterns.push(
+      this.createSingleHangingLantern(leftFlankHook, 0.40, 0xffaa33, 1.35, 6.5, 14)
+    );
+    const rightFlankHook = this.createRusticLanternPost(3.8, 4.4, 2.8);
+    this.hangingLanterns.push(
+      this.createSingleHangingLantern(rightFlankHook, 0.40, 0xfef08a, 1.35, 6.5, 15)
     );
   }
 
@@ -2158,32 +2298,25 @@ export class VillageEnvironment {
     }
 
     // 5. Yamuna water dynamic flowing river wave animation
-    if (this.waterGeometry && this.waterInitialPositions) {
-      const pos = this.waterGeometry.attributes.position;
-      const count = pos.count;
-      const init = this.waterInitialPositions;
-      for (let i = 0; i < count; i++) {
-        const ix = init[i * 3];
-        const iy = init[i * 3 + 1];
-        // Primary downstream river current:
-        const w1 = Math.sin(ix * 0.42 + iy * 0.32 + time * 1.8) * 0.045;
-        // Cross ripples:
-        const w2 = Math.cos(ix * 0.92 - iy * 0.62 + time * 2.3) * 0.022;
-        // Micro moonlight sparkles:
-        const w3 = Math.sin(ix * 2.2 + iy * 1.5 + time * 3.6) * 0.012;
-        pos.setZ(i, w1 + w2 + w3);
-      }
-      pos.needsUpdate = true;
-      this.waterGeometry.computeVertexNormals();
+    if (this.waterMaterial) {
+      this.waterMaterial.uniforms.uTime.value = time;
     }
+
+    // Exact analytical wave elevation matching Yamuna vertex shader
+    const getWaveY = (x: number, z: number, t: number) => {
+      return (
+        Math.sin(x * 0.38 + z * 0.32 + t * 1.6) * 0.045 +
+        Math.cos(x * 0.85 - z * 0.65 + t * 2.2) * 0.025 +
+        Math.sin(x * 1.8 + z * 1.4 + t * 3.4) * 0.012
+      );
+    };
 
     // 6. Lotus blossoms dynamic bobbing & tilting with the flowing Yamuna waves
     this.lotusData.forEach((item) => {
-      const w1 = Math.sin(item.baseX * 0.42 - item.baseZ * 0.32 + time * 1.8) * 0.045;
-      const w2 = Math.cos(item.baseX * 0.92 + item.baseZ * 0.62 + time * 2.3) * 0.022;
-      item.group.position.y = 0.08 + w1 + w2;
-      item.group.rotation.z = Math.sin(time * 1.5 + item.phase) * 0.038;
-      item.group.rotation.x = Math.cos(time * 1.2 + item.phase) * 0.028;
+      const waveY = getWaveY(item.baseX, item.baseZ, time);
+      item.group.position.y = 0.02 + waveY;
+      item.group.rotation.z = Math.sin(time * 1.5 + item.phase) * 0.045;
+      item.group.rotation.x = Math.cos(time * 1.2 + item.phase) * 0.035;
       item.group.rotation.y += 0.001;
     });
 
@@ -2195,11 +2328,10 @@ export class VillageEnvironment {
       diya.group.position.x = currentX;
       diya.group.position.z = currentZ;
 
-      const w1 = Math.sin(currentX * 0.42 - currentZ * 0.32 + time * 1.8) * 0.045;
-      const w2 = Math.cos(currentX * 0.92 + currentZ * 0.62 + time * 2.3) * 0.022;
-      diya.group.position.y = 0.08 + w1 + w2;
-      diya.group.rotation.z = Math.sin(time * 2.2 + diya.phase) * 0.045;
-      diya.group.rotation.x = Math.cos(time * 1.8 + diya.phase) * 0.035;
+      const waveY = getWaveY(currentX, currentZ, time);
+      diya.group.position.y = 0.02 + waveY;
+      diya.group.rotation.z = Math.sin(time * 2.2 + diya.phase) * 0.055;
+      diya.group.rotation.x = Math.cos(time * 1.8 + diya.phase) * 0.045;
 
       const flameFlicker = 1 + Math.sin(time * 14 + diya.phase) * 0.16 + (Math.random() - 0.5) * 0.05;
       diya.flame.scale.set(flameFlicker, flameFlicker * 1.12, flameFlicker);
