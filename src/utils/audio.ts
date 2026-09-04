@@ -11,6 +11,8 @@ class SoundEngine {
   private droneOsc2: OscillatorNode | null = null;
   private droneGain: GainNode | null = null;
   private fluteTimer: number | null = null;
+  private bgAudio: HTMLAudioElement | null = null;
+  private bgAudioVolume: number = 0.20; // Serene low sound for divine background atmosphere
 
   // Pentatonic bansuri raga notes (Raga Bhupali / Mohanam: Sa, Re, Ga, Pa, Dha)
   private readonly ragaNotes = [
@@ -33,6 +35,17 @@ class SoundEngine {
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    if (!this.bgAudio && typeof Audio !== 'undefined') {
+      this.bgAudio = new Audio('/krishna_and_his_leel.mp3');
+      this.bgAudio.loop = true;
+      this.bgAudio.volume = this.bgAudioVolume;
+      this.bgAudio.preload = 'auto';
+      this.bgAudio.addEventListener('error', () => {
+        if (this.bgAudio) {
+          this.bgAudio.src = 'krishna_and_his_leel.mp3';
+        }
+      });
+    }
   }
 
   public toggleMute(): boolean {
@@ -41,11 +54,38 @@ class SoundEngine {
 
     if (this.isMuted) {
       this.stopAmbientDrone();
+      this.pauseBackgroundMusic();
     } else {
       this.startAmbientDrone();
+      this.playBackgroundMusic();
       this.playFlutePhrase();
     }
     return !this.isMuted;
+  }
+
+  public playBackgroundMusic() {
+    this.init();
+    if (this.isMuted || !this.bgAudio) return;
+    this.bgAudio.volume = this.bgAudioVolume;
+    const playPromise = this.bgAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        // Autoplay policy: will resume on next user click/interaction
+      });
+    }
+  }
+
+  public pauseBackgroundMusic() {
+    if (this.bgAudio) {
+      this.bgAudio.pause();
+    }
+  }
+
+  public setBackgroundMusicVolume(volume: number) {
+    this.bgAudioVolume = Math.max(0, Math.min(1, volume));
+    if (this.bgAudio) {
+      this.bgAudio.volume = this.bgAudioVolume;
+    }
   }
 
   public getMuted(): boolean {

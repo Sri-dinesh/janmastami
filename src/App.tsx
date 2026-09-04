@@ -87,6 +87,17 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isBlessingOpen, isKrishnaModelOpen]);
 
+  // Ensure background music plays smoothly on user interaction if sound is active
+  useEffect(() => {
+    const handleGesture = () => {
+      if (!soundEngine.getMuted()) {
+        soundEngine.playBackgroundMusic();
+      }
+    };
+    window.addEventListener('pointerdown', handleGesture);
+    return () => window.removeEventListener('pointerdown', handleGesture);
+  }, []);
+
   const handleEnterWorld = () => {
     setIsLoading(false);
     // Unmute & start serene bansuri music on user entry gesture

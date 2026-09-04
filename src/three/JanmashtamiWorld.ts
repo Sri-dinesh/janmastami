@@ -72,8 +72,8 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "Waters of Devotion",
     quote: "Soft moonbeams ripple across serene blue currents, carrying floating lotus blooms and glowing prayer diyas.",
     tagline: "Watch the water ripples and floating lotuses",
-    camPos: new THREE.Vector3(0, 4.4, -4.6),
-    targetPos: new THREE.Vector3(0, 0.2, -16.0),
+    camPos: new THREE.Vector3(0, 2.4, -7.2),
+    targetPos: new THREE.Vector3(0, 0.2, -17.0),
     lightWarmth: 0.45,
   },
   {
@@ -530,30 +530,52 @@ export class JanmashtamiWorld {
           return;
         }
 
-        if (
-          name === 'KrishnaFlute' ||
-          name === 'KrishnaFluteAltar' ||
-          name === 'KrishnaFluteModel' ||
-          name === 'KrishnaFluteMini' ||
-          name === 'KrishnaFluteJhula' ||
-          name === 'KrishnaFluteJhulaWrap' ||
-          name.includes('Flute') ||
-          hitObj === this.village.fluteGroup
-        ) {
+        // 1. Center Krishna Character (Krisha Flute GLB)
+        let isKrishnaClick = false;
+        let testKrishna: THREE.Object3D | null = hitObj;
+        while (testKrishna) {
+          if (testKrishna === this.krishna.group) {
+            isKrishnaClick = true;
+            break;
+          }
+          testKrishna = testKrishna.parent;
+        }
+
+        if (isKrishnaClick || name === 'KrishnaCharacter') {
+          this.krishna.triggerBlessing();
           soundEngine.playFlutePhrase();
           this.particles.showerPetals();
           this.onInteractionCallback?.(
-            'flute',
-            "The divine melody of Krishna's sacred bansuri fills Vrindavan with eternal bliss! 🎶✨"
+            'krishna',
+            'Sri Krishna smiles radiantly and plays a sweet, enchanting bansuri melody! 🎶✨'
           );
           return;
         }
 
-        if (name === 'KrishnaCharacter' || hitObj === this.krishna.group) {
-          this.krishna.triggerBlessing();
-          soundEngine.playFlutePhrase();
+        // 2. Side Radha-Krishna Sacred Altar
+        let isAltarClick = false;
+        let testAltar: THREE.Object3D | null = hitObj;
+        while (testAltar) {
+          if (testAltar === this.village.fluteGroup) {
+            isAltarClick = true;
+            break;
+          }
+          testAltar = testAltar.parent;
+        }
+
+        if (
+          isAltarClick ||
+          name === 'RadhaKrishnaAltar' ||
+          name === 'RadhaKrishnaAltarModel' ||
+          name === 'RadhaKrishnaAltarContainer' ||
+          name === 'KrishnaFluteAltar'
+        ) {
+          soundEngine.playBlessingChime();
           this.particles.showerPetals();
-          this.onInteractionCallback?.('krishna', 'Little Krishna smiles radiantly and plays a sweet bansuri melody.');
+          this.onInteractionCallback?.(
+            'flute',
+            'Sri Sri Radha-Krishna shower eternal love, harmony, and blessings upon Gokul! 🌸✨'
+          );
           return;
         }
 

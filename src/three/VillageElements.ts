@@ -1803,12 +1803,12 @@ export class VillageEnvironment {
       socketGroup.add(bracket);
     });
 
-    this.fluteGroup.add(socketGroup);
+    // Note: socketGroup omitted so Sri Radha-Krishna rests flush on the royal velvet cushion
 
-    // 4. Sacred Flute Container & Loader (Standing Vertically)
+    // 4. Sacred Altar Container & Loader for Sri Radha-Krishna
     const fluteContainer = new THREE.Group();
-    fluteContainer.name = 'KrishnaFlute';
-    fluteContainer.position.set(0, 0.38, 0);
+    fluteContainer.name = 'RadhaKrishnaAltarContainer';
+    fluteContainer.position.set(0, 0.32, 0);
     this.fluteGroup.add(fluteContainer);
 
     // Procedural majestic golden bansuri placeholder (standing upright)
@@ -1856,18 +1856,18 @@ export class VillageEnvironment {
     proceduralBansuri.rotation.set(0.03, 0.22, 0.0);
     fluteContainer.add(proceduralBansuri);
 
-    // Asynchronous GLB Loader for public/krisha-flute.glb (standing upright)
+    // Asynchronous GLB Loader for public/krishna-radha.glb (swapped onto side altar)
     const loader = new GLTFLoader();
-    const applyFluteGLB = (model: THREE.Group) => {
-      model.name = 'KrishnaFluteModel';
+    const applyRadhaKrishnaGLB = (model: THREE.Group) => {
+      model.name = 'RadhaKrishnaAltarModel';
       const box = new THREE.Box3().setFromObject(model);
       const size = new THREE.Vector3();
       box.getSize(size);
       const center = new THREE.Vector3();
       box.getCenter(center);
 
-      // Desired vertical height ~1.38 units
-      const targetHeight = 1.38;
+      // Proportional height ~1.20 units for side altar
+      const targetHeight = 1.20;
       const scaleFactor = targetHeight / (size.y || 1.0);
 
       const innerGroup = new THREE.Group();
@@ -1878,13 +1878,13 @@ export class VillageEnvironment {
           const mesh = child as THREE.Mesh;
           mesh.castShadow = true;
           mesh.receiveShadow = true;
-          mesh.name = 'KrishnaFlute';
+          mesh.name = 'RadhaKrishnaAltar';
           if (mesh.material) {
             const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
             mats.forEach((m) => {
               m.side = THREE.DoubleSide;
               if (m instanceof THREE.MeshStandardMaterial) {
-                m.roughness = Math.max(0.22, m.roughness);
+                m.roughness = Math.max(0.28, m.roughness);
                 m.envMapIntensity = 1.35;
               }
             });
@@ -1894,8 +1894,8 @@ export class VillageEnvironment {
       innerGroup.add(model);
       innerGroup.scale.setScalar(scaleFactor);
 
-      // Standing vertically upright with gentle regal front-facing orientation
-      innerGroup.rotation.set(0.03, 0.25, 0.0);
+      // Facing the courtyard gracefully
+      innerGroup.rotation.set(0.0, 0.0, 0.0);
 
       fluteContainer.add(innerGroup);
       this.fluteModel = innerGroup;
@@ -1903,25 +1903,25 @@ export class VillageEnvironment {
     };
 
     loader.load(
-      '/krisha-flute.glb',
-      (gltf) => applyFluteGLB(gltf.scene),
+      '/krishna-radha.glb',
+      (gltf) => applyRadhaKrishnaGLB(gltf.scene),
       undefined,
       (err) => {
-        console.warn('Retrying krisha-flute.glb from local path:', err);
+        console.warn('Retrying krishna-radha.glb from local path:', err);
         loader.load(
-          'krisha-flute.glb',
-          (gltf2) => applyFluteGLB(gltf2.scene),
+          'krishna-radha.glb',
+          (gltf2) => applyRadhaKrishnaGLB(gltf2.scene),
           undefined,
-          (err2) => console.error('Could not load krisha-flute.glb:', err2)
+          (err2) => console.error('Could not load krishna-radha.glb:', err2)
         );
       }
     );
 
     // 5. Flanking Brass Diyas
-    [-0.46, 0.46].forEach((dx, didx) => {
+    [-0.58, 0.58].forEach((dx, didx) => {
       const diyaGroup = new THREE.Group();
       diyaGroup.name = `Diya_FluteAltar_${didx}`;
-      diyaGroup.position.set(dx, 0.12, 0.18);
+      diyaGroup.position.set(dx, 0.12, 0.22);
 
       const clayBase = new THREE.Mesh(
         new THREE.CylinderGeometry(0.07, 0.05, 0.04, 16),

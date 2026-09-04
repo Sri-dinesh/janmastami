@@ -39,7 +39,7 @@ export class KrishnaCharacter {
     this.group.add(this.proceduralGroup);
 
     this.glbGroup = new THREE.Group();
-    this.glbGroup.name = 'KrishnaRadhaGLB';
+    this.glbGroup.name = 'KrishnaFluteGLB';
     this.group.add(this.glbGroup);
 
     // 0. Padmasana (Sacred Golden Lotus Pedestal)
@@ -62,8 +62,8 @@ export class KrishnaCharacter {
     this.lotusPedestal.position.y = 0.11;
     this.group.add(this.lotusPedestal);
 
-    // Divine Aura Halo
-    const haloGeo = new THREE.RingGeometry(0.65, 0.9, 32);
+    // Divine Aura Halo (positioned to frame the head of the enlarged flute idol)
+    const haloGeo = new THREE.RingGeometry(0.75, 1.05, 32);
     const haloMat = new THREE.MeshBasicMaterial({
       color: 0xfef08a,
       side: THREE.DoubleSide,
@@ -72,11 +72,11 @@ export class KrishnaCharacter {
       blending: THREE.AdditiveBlending,
     });
     this.divineAuraRing = new THREE.Mesh(haloGeo, haloMat);
-    this.divineAuraRing.position.set(0, 1.9, -0.2);
+    this.divineAuraRing.position.set(0, 2.45, -0.22);
     this.group.add(this.divineAuraRing);
 
-    this.auraPointLight = new THREE.PointLight(0xf59e0b, 1.5, 6);
-    this.auraPointLight.position.set(0, 1.8, 0.6);
+    this.auraPointLight = new THREE.PointLight(0xf59e0b, 1.6, 7);
+    this.auraPointLight.position.set(0, 2.35, 0.7);
     this.group.add(this.auraPointLight);
 
     // Load the 3D GLB Model (krishna+radha+3d+model.glb)
@@ -125,18 +125,18 @@ export class KrishnaCharacter {
     const leftAnklet = new THREE.Mesh(ankletGeo, this.materials.gold);
     leftAnklet.rotation.x = Math.PI / 2;
     leftAnklet.position.set(-0.2, 0.12, 0);
-    this.group.add(leftAnklet);
+    this.proceduralGroup.add(leftAnklet);
 
     const rightAnklet = leftAnklet.clone();
     rightAnklet.position.set(0.2, 0.12, 0);
-    this.group.add(rightAnklet);
+    this.proceduralGroup.add(rightAnklet);
 
-    // Golden necklace (Kaustubha / Haar)
+    // Golden necklace (Kaustubha / Haar) - Procedural
     const necklaceGeo = new THREE.TorusGeometry(0.32, 0.04, 8, 20, Math.PI);
     const necklaceMesh = new THREE.Mesh(necklaceGeo, this.materials.gold);
     necklaceMesh.rotation.x = Math.PI / 2.8;
     necklaceMesh.position.set(0, 1.62, 0.22);
-    this.group.add(necklaceMesh);
+    this.proceduralGroup.add(necklaceMesh);
 
     const pendantGeo = new THREE.OctahedronGeometry(0.08, 0);
     const pendantMat = new THREE.MeshStandardMaterial({
@@ -146,7 +146,7 @@ export class KrishnaCharacter {
     });
     const pendantMesh = new THREE.Mesh(pendantGeo, pendantMat);
     pendantMesh.position.set(0, 1.44, 0.36);
-    this.group.add(pendantMesh);
+    this.proceduralGroup.add(pendantMesh);
 
     // 2. Head Group
     this.headGroup = new THREE.Group();
@@ -383,57 +383,64 @@ export class KrishnaCharacter {
 
   private loadGlbModel() {
     const loader = new GLTFLoader();
-    loader.load(
-      '/krishna-radha.glb',
-      (gltf) => {
-        const root = gltf.scene;
+    const applyGlb = (gltf: any) => {
+      const root = gltf.scene;
 
-        const box = new THREE.Box3().setFromObject(root);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
+      const box = new THREE.Box3().setFromObject(root);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
 
-        // Standard proportional height ~2.35 units in village courtyard
-        const targetHeight = 2.35;
-        const scale = targetHeight / (size.y || 1);
-        root.scale.set(scale, scale, scale);
+      // Enlarged central Krishna flute statue: targetHeight 2.95 units
+      const targetHeight = 2.95;
+      const scale = targetHeight / (size.y || 1);
+      root.scale.set(scale, scale, scale);
 
-        // Center on X and Z, position atop the golden lotus pedestal
-        root.position.x = -center.x * scale;
-        root.position.z = -center.z * scale;
-        root.position.y = -box.min.y * scale + 0.22;
+      // Center on X and Z, position atop the golden lotus pedestal
+      root.position.x = -center.x * scale;
+      root.position.z = -center.z * scale;
+      root.position.y = -box.min.y * scale + 0.22;
 
-        root.traverse((child) => {
-          if ((child as THREE.Mesh).isMesh) {
-            const mesh = child as THREE.Mesh;
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            if (mesh.material) {
-              if (Array.isArray(mesh.material)) {
-                mesh.material.forEach((m) => {
-                  if (m instanceof THREE.MeshStandardMaterial) {
-                    m.roughness = Math.max(0.35, m.roughness);
-                    m.envMapIntensity = 1.3;
-                  }
-                });
-              } else if (mesh.material instanceof THREE.MeshStandardMaterial) {
-                mesh.material.roughness = Math.max(0.35, mesh.material.roughness);
-                mesh.material.envMapIntensity = 1.3;
+      root.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          if (mesh.material) {
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            mats.forEach((m) => {
+              m.side = THREE.DoubleSide;
+              if (m instanceof THREE.MeshStandardMaterial) {
+                m.roughness = Math.max(0.28, m.roughness);
+                m.envMapIntensity = 1.35;
               }
-            }
+            });
           }
-        });
+        }
+      });
 
-        this.glbGroup.add(root);
-        this.isGlbLoaded = true;
-        // Hide procedural fallback once GLB model has arrived
-        this.proceduralGroup.visible = false;
-      },
+      this.glbGroup.add(root);
+      this.isGlbLoaded = true;
+      // Hide procedural fallback once GLB model has arrived
+      this.proceduralGroup.visible = false;
+    };
+
+    loader.load(
+      '/krisha-flute.glb',
+      applyGlb,
       undefined,
       (err) => {
-        console.warn('Using procedural Krishna fallback:', err);
-        this.proceduralGroup.visible = true;
+        console.warn('Retrying krisha-flute.glb from local path:', err);
+        loader.load(
+          'krisha-flute.glb',
+          applyGlb,
+          undefined,
+          (err2) => {
+            console.warn('Using procedural Krishna fallback:', err2);
+            this.proceduralGroup.visible = true;
+          }
+        );
       }
     );
   }

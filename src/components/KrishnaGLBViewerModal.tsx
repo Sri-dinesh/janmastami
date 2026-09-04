@@ -251,8 +251,8 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
         const center = new THREE.Vector3();
         box.getCenter(center);
 
-        // Scale model to standard height
-        const targetHeight = modelType === 'krisha-flute' ? 2.0 : 2.2;
+        // Scale model to standard height (krisha-flute enlarged to 2.5)
+        const targetHeight = modelType === 'krisha-flute' ? 2.5 : 2.2;
         const maxDim = modelType === 'krisha-flute' ? Math.max(size.x, size.y, size.z) || 1 : (size.y || 1);
         const scaleFactor = targetHeight / maxDim;
         root.scale.set(scaleFactor, scaleFactor, scaleFactor);
