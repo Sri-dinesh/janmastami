@@ -259,6 +259,301 @@ function createYamunaWaterMaterial(moonPos: THREE.Vector3): THREE.ShaderMaterial
   });
 }
 
+// Seamless lofted anatomical geometry for Indian Gir Zebu bovine torso
+function createAnatomicalZebuTorso(isBaby = false): THREE.BufferGeometry {
+  const rings = 28;
+  const slices = 32;
+  const verts: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  const scale = isBaby ? 0.55 : 1.0;
+  const lengthSpan = isBaby ? 0.90 : 1.64;
+  const startX = lengthSpan * 0.5;
+
+  for (let i = 0; i < rings; i++) {
+    const t = i / (rings - 1);
+    const x = startX - t * lengthSpan;
+
+    let width = 0.50 * scale;
+    let height = 0.60 * scale;
+    let hump = 0.0;
+    let cy = isBaby ? 0.44 : 1.0;
+
+    if (t < 0.28) {
+      // Withers / Scapulae region with forward-leaning Gir dorsal hump (Kakud)
+      const u = t / 0.28;
+      width = (0.44 + Math.sin(u * Math.PI * 0.5) * 0.16) * scale;
+      height = (0.52 + Math.sin(u * Math.PI * 0.5) * 0.24) * scale;
+      const humpAmp = isBaby ? 0.12 : 0.48;
+      hump = Math.exp(-Math.pow(t - 0.16, 2) / (isBaby ? 0.009 : 0.007)) * humpAmp;
+      cy = (isBaby ? 0.42 : 0.94) + Math.sin(u * Math.PI * 0.5) * (0.08 * scale);
+    } else if (t < 0.72) {
+      // Deep muscular barreled ribcage tapering into the flank & loin
+      const u = (t - 0.28) / 0.44;
+      width = (0.60 + Math.sin(u * Math.PI) * 0.14) * scale;
+      height = (0.76 + Math.sin(u * Math.PI) * 0.08) * scale;
+      const humpTrailing = isBaby ? 0.04 : 0.14;
+      hump = t < 0.36 ? Math.exp(-Math.pow(t - 0.28, 2) / 0.004) * humpTrailing : 0.0;
+      cy = (isBaby ? 0.45 : 1.02) - Math.sin(u * Math.PI) * (0.04 * scale);
+    } else {
+      // Pelvic rump (croup) and tailhead with rounded iliac crest contours
+      const u = (t - 0.72) / 0.28;
+      width = (0.56 + Math.sin(u * Math.PI * 0.7) * 0.10) * scale;
+      height = (0.72 - u * 0.20) * scale;
+      hump = 0.0;
+      cy = (isBaby ? 0.43 : 0.98) + u * (0.06 * scale);
+    }
+
+    for (let j = 0; j < slices; j++) {
+      const angle = (j / slices) * Math.PI * 2.0;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+
+      // Spine & dorsal hump peak
+      const topFactor = Math.pow(Math.max(0.0, cosA), 2.2);
+      const ry = height * 0.5 + hump * topFactor;
+
+      // Deep ventral chest / belly
+      const botFactor = Math.pow(Math.max(0.0, -cosA), 1.8);
+      const bellyDrop = (isBaby ? 0.04 : 0.07) * Math.sin(t * Math.PI) * botFactor;
+
+      const vy = cy + cosA * ry - bellyDrop;
+      const vz = sinA * (width * 0.5);
+      verts.push(x, vy, vz);
+      uvs.push(t, j / slices);
+    }
+  }
+
+  // Quads to triangles
+  for (let i = 0; i < rings - 1; i++) {
+    for (let j = 0; j < slices; j++) {
+      const nextJ = (j + 1) % slices;
+      const a = i * slices + j;
+      const b = (i + 1) * slices + j;
+      const c = (i + 1) * slices + nextJ;
+      const d = i * slices + nextJ;
+      indices.push(a, b, c, a, c, d);
+    }
+  }
+
+  // Front pole cap
+  const frontPoleIdx = verts.length / 3;
+  verts.push(startX + 0.06 * scale, isBaby ? 0.42 : 0.94, 0.0);
+  uvs.push(0, 0.5);
+  for (let j = 0; j < slices; j++) {
+    const nextJ = (j + 1) % slices;
+    indices.push(frontPoleIdx, nextJ, j);
+  }
+
+  // Rear pole cap
+  const rearPoleIdx = verts.length / 3;
+  verts.push(-startX - 0.06 * scale, isBaby ? 0.46 : 1.04, 0.0);
+  uvs.push(1, 0.5);
+  const lastRingOffset = (rings - 1) * slices;
+  for (let j = 0; j < slices; j++) {
+    const nextJ = (j + 1) % slices;
+    indices.push(rearPoleIdx, lastRingOffset + j, lastRingOffset + nextJ);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// Seamless lofted anatomical geometry for Gir Zebu bovine skull & muzzle
+function createAnatomicalZebuHead(isBaby = false): THREE.BufferGeometry {
+  const rings = 20;
+  const slices = 24;
+  const verts: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  const scale = isBaby ? 0.6 : 1.0;
+  const startX = isBaby ? -0.22 : -0.32;
+  const endX = isBaby ? 0.32 : 0.52;
+  const lengthX = endX - startX;
+
+  for (let i = 0; i < rings; i++) {
+    const t = i / (rings - 1);
+    const x = startX + t * lengthX;
+
+    let width = 0.28 * scale;
+    let height = 0.32 * scale;
+    let foreheadBulge = 0.0;
+    let cy = 0.0;
+
+    if (t < 0.35) {
+      // Occipital poll & cranium / neck attachment
+      const u = t / 0.35;
+      width = (0.24 + u * 0.12) * scale;
+      height = (0.26 + u * 0.14) * scale;
+      cy = u * 0.08 * scale;
+    } else if (t < 0.65) {
+      // Signature Gir convex domed forehead & supraorbital eye zones
+      const u = (t - 0.35) / 0.30;
+      width = (0.36 - Math.pow(u - 0.3, 2) * 0.10) * scale;
+      height = (0.40 - u * 0.10) * scale;
+      const foreheadPeak = isBaby ? 0.06 : 0.14;
+      foreheadBulge = Math.sin(u * Math.PI) * foreheadPeak;
+      cy = (0.08 - u * 0.08) * scale;
+    } else {
+      // Nasal bridge smoothly tapering down to the rounded muzzle
+      const u = (t - 0.65) / 0.35;
+      width = (0.26 - Math.sin(u * Math.PI * 0.5) * 0.04 + Math.pow(u, 2) * 0.04) * scale;
+      height = (0.30 - u * 0.08) * scale;
+      cy = (-u * 0.12) * scale;
+    }
+
+    for (let j = 0; j < slices; j++) {
+      const angle = (j / slices) * Math.PI * 2.0;
+      const cosA = Math.cos(angle);
+      const sinA = Math.sin(angle);
+
+      const topFactor = Math.pow(Math.max(0.0, cosA), 2.0);
+      const ry = height * 0.5 + foreheadBulge * topFactor;
+
+      const botFactor = Math.pow(Math.max(0.0, -cosA), 2.0);
+      const chinFlatten = t > 0.7 ? 0.03 * botFactor * scale : 0.0;
+
+      const vy = cy + cosA * ry + chinFlatten;
+      const vz = sinA * (width * 0.5);
+      verts.push(x, vy, vz);
+      uvs.push(t, j / slices);
+    }
+  }
+
+  // Quads to triangles
+  for (let i = 0; i < rings - 1; i++) {
+    for (let j = 0; j < slices; j++) {
+      const nextJ = (j + 1) % slices;
+      const a = i * slices + j;
+      const b = (i + 1) * slices + j;
+      const c = (i + 1) * slices + nextJ;
+      const d = i * slices + nextJ;
+      indices.push(a, b, c, a, c, d);
+    }
+  }
+
+  // Rear pole (occiput)
+  const rearPoleIdx = verts.length / 3;
+  verts.push(startX - 0.04 * scale, 0.0, 0.0);
+  uvs.push(0, 0.5);
+  for (let j = 0; j < slices; j++) {
+    const nextJ = (j + 1) % slices;
+    indices.push(rearPoleIdx, j, nextJ);
+  }
+
+  // Front pole (muzzle pad center)
+  const frontPoleIdx = verts.length / 3;
+  verts.push(endX + 0.03 * scale, -0.12 * scale, 0.0);
+  uvs.push(1, 0.5);
+  const lastRingOffset = (rings - 1) * slices;
+  for (let j = 0; j < slices; j++) {
+    const nextJ = (j + 1) % slices;
+    indices.push(frontPoleIdx, lastRingOffset + nextJ, lastRingOffset + j);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// Undulating throat dewlap (Galakambal) with continuous multi-frequency skin folds
+function createAnatomicalDewlap(): THREE.BufferGeometry {
+  const stepsU = 20; // Along throat from jaw to brisket
+  const stepsV = 8;  // Hanging downward from neck to free margin
+  const verts: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+
+  for (let i = 0; i <= stepsU; i++) {
+    const u = i / stepsU;
+    const baseX = 0.78 - u * 0.38;
+    const baseY = 0.90 - Math.pow(u, 0.85) * 0.36;
+    const maxHangingDepth = 0.28 * Math.sin(u * Math.PI * 0.9 + 0.15);
+
+    for (let j = 0; j <= stepsV; j++) {
+      const v = j / stepsV;
+      const y = baseY - v * maxHangingDepth;
+      const x = baseX + v * 0.04;
+      const wave = Math.sin(u * Math.PI * 4.5) * (0.045 * v);
+      const z = wave;
+
+      verts.push(x, y, z);
+      uvs.push(u, v);
+    }
+  }
+
+  const stride = stepsV + 1;
+  for (let i = 0; i < stepsU; i++) {
+    for (let j = 0; j < stepsV; j++) {
+      const a = i * stride + j;
+      const b = (i + 1) * stride + j;
+      const c = (i + 1) * stride + (j + 1);
+      const d = i * stride + (j + 1);
+      // Double sided faces for the thin dewlap skin folds
+      indices.push(a, b, c, a, c, d);
+      indices.push(a, c, b, a, d, c);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// Helper to calculate exact outer clay pot radius at height y from spline profile
+function getOuterPotRadiusAtY(y: number, outerPoints: THREE.Vector2[]): number {
+  let closestR = 0.55;
+  let minDy = 999;
+  for (let i = 0; i < outerPoints.length; i++) {
+    const pt = outerPoints[i];
+    const dy = Math.abs(pt.y - y);
+    if (dy < minDy) {
+      minDy = dy;
+      closestR = pt.x;
+    }
+  }
+  return closestR;
+}
+
+// Sculpted organic whipped butter dome with procedural churned ripples & peaks
+function createSculptedButterDome(radius = 0.42): THREE.BufferGeometry {
+  const butterGeo = new THREE.SphereGeometry(radius, 48, 32);
+  const pos = butterGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    let px = pos.getX(i);
+    let py = pos.getY(i);
+    let pz = pos.getZ(i);
+
+    if (py < 0) {
+      py *= 0.15; // Flatten bottom sitting inside pot neck
+    } else {
+      const angle = Math.atan2(pz, px);
+      const rad = Math.sqrt(px * px + pz * pz);
+      const ripple = Math.sin(angle * 4.0 + py * 5.0) * (0.032 * (radius / 0.42)) +
+                     Math.cos(rad * 8.0) * (0.022 * (radius / 0.42));
+      const crown = Math.exp(-Math.pow(rad, 2) / 0.08) * (0.08 * (radius / 0.42));
+      py = py * 0.72 + ripple + crown;
+      px += Math.cos(angle) * (ripple * 0.4);
+      pz += Math.sin(angle) * (ripple * 0.4);
+    }
+    pos.setXYZ(i, px, py, pz);
+  }
+  butterGeo.computeVertexNormals();
+  return butterGeo;
+}
+
 export class VillageEnvironment {
   public group: THREE.Group;
   private materials = createStandardMaterials();
@@ -603,7 +898,7 @@ export class VillageEnvironment {
       this.matkiGroup.add(bell);
     }
 
-    // 3. Earthen Terracotta Matki (Masterpiece Artisan Lathe Geometry - 96 segments, 36 profile points)
+    // 3. Earthen Terracotta Matki (Masterpiece Artisan Lathe Geometry - 96 segments, spline-interpolated profile)
     const potGroup = new THREE.Group();
     potGroup.name = 'MatkiPot';
 
@@ -634,11 +929,19 @@ export class VillageEnvironment {
       new THREE.Vector2(0.001, 0.50),  // Inner mouth floor
     ];
 
-    const potGeo = new THREE.LatheGeometry(potProfilePoints, 96);
+    // Spline curve interpolation for continuous silky-smooth ceramic clay curvature
+    const potSpline = new THREE.SplineCurve(potProfilePoints);
+    const smoothPotProfile = potSpline.getPoints(180);
+    const potGeo = new THREE.LatheGeometry(smoothPotProfile, 96);
+    potGeo.computeVertexNormals();
     const potMesh = new THREE.Mesh(potGeo, this.materials.terracotta);
     potMesh.castShadow = true;
     potMesh.receiveShadow = true;
     potGroup.add(potMesh);
+
+    // Spline for the outer surface (indices 0 to 17) used to strictly conform decals & butter drips
+    const outerWallSpline = new THREE.SplineCurve(potProfilePoints.slice(0, 18));
+    const outerWallPoints = outerWallSpline.getPoints(120);
 
     // Decorative traditional braided clay rope relief band along shoulder
     const reliefRope = new THREE.Mesh(
@@ -657,9 +960,17 @@ export class VillageEnvironment {
       potGroup.add(stud);
     }
 
-    // Traditional white Aipan / Pithha folk art painted band around the belly
+    // Traditional white Aipan / Pithha folk art painted band form-fitted to the spherical belly
     const aipanTex = createAipanMotifTexture();
-    const aipanBandGeo = new THREE.CylinderGeometry(0.72, 0.71, 0.32, 64, 1, true);
+    const aipanDecalPoints: THREE.Vector2[] = [];
+    const decalSteps = 24;
+    for (let s = 0; s <= decalSteps; s++) {
+      const u = s / decalSteps;
+      const dy = -0.16 + u * 0.32;
+      const r = getOuterPotRadiusAtY(dy, outerWallPoints) + 0.005; // 5mm offset
+      aipanDecalPoints.push(new THREE.Vector2(r, dy));
+    }
+    const aipanBandGeo = new THREE.LatheGeometry(aipanDecalPoints, 96);
     const aipanMat = new THREE.MeshStandardMaterial({
       map: aipanTex,
       transparent: true,
@@ -668,7 +979,6 @@ export class VillageEnvironment {
       side: THREE.DoubleSide,
     });
     const aipanMesh = new THREE.Mesh(aipanBandGeo, aipanMat);
-    aipanMesh.position.y = -0.02;
     potGroup.add(aipanMesh);
 
     // Sacred Red & Yellow Kalawa/Mauli thread wrapped 5 times around the neck
@@ -728,35 +1038,16 @@ export class VillageEnvironment {
     featherGoldRim.rotation.z = -0.42;
     potGroup.add(featherGoldRim);
 
-    // 4. Luscious Whipped Fresh Makhan (White Butter) Overflowing
+    // 4. Luscious Sculpted Fresh Makhan (Whipped White Butter) Overflowing
     const makhanGroup = new THREE.Group();
 
-    // High-resolution sculpted whipped butter mound brimming over the mouth
-    const mainMound = new THREE.Mesh(
-      new THREE.SphereGeometry(0.40, 32, 32).scale(1.18, 0.62, 1.18),
-      this.materials.butter
-    );
-    mainMound.position.y = 0.68;
+    // Procedural noise-sculpted whipped butter dome overflowing over the mouth rim
+    const sculptedButterGeo = createSculptedButterDome(0.42);
+    const mainMound = new THREE.Mesh(sculptedButterGeo, this.materials.butter);
+    mainMound.position.y = 0.64;
     mainMound.castShadow = true;
+    mainMound.receiveShadow = true;
     makhanGroup.add(mainMound);
-
-    // Organic sculpted butter crests and whipped lobes bursting over the rim
-    const lobeConfigs = [
-      [-0.16, 0.76, 0.12, 0.18],
-      [0.18, 0.75, -0.10, 0.20],
-      [0.02, 0.80, 0.16, 0.17],
-      [-0.12, 0.74, -0.16, 0.19],
-      [0.14, 0.78, 0.14, 0.16],
-      [-0.04, 0.82, -0.04, 0.18],
-    ];
-    lobeConfigs.forEach(([lx, ly, lz, lr]) => {
-      const lobe = new THREE.Mesh(
-        new THREE.SphereGeometry(lr, 18, 18).scale(1.15, 0.75, 1.05),
-        this.materials.butter
-      );
-      lobe.position.set(lx, ly, lz);
-      makhanGroup.add(lobe);
-    });
 
     // Fresh sacred green Tulsi leaf (holy basil) resting atop the fresh butter
     const tulsiStem = new THREE.Mesh(
@@ -793,36 +1084,42 @@ export class VillageEnvironment {
       makhanGroup.add(parijatPetal);
     }
 
-    // Realistic viscous cascading butter streams trickling down the terracotta body
+    // Authentic viscous cascading butter streams conforming strictly to the terracotta pot's curvature
     const dripConfigs = [
-      { angle: 0.4, length: 0.45, radius: 0.052, y: 0.48 },
-      { angle: 1.5, length: 0.68, radius: 0.048, y: 0.36 },
-      { angle: 2.7, length: 0.34, radius: 0.044, y: 0.54 },
-      { angle: 3.8, length: 0.58, radius: 0.050, y: 0.42 },
-      { angle: 4.9, length: 0.76, radius: 0.046, y: 0.30 },
-      { angle: 5.8, length: 0.42, radius: 0.046, y: 0.50 },
+      { angle: 0.4, length: 0.45, radius: 0.046 },
+      { angle: 1.5, length: 0.68, radius: 0.042 },
+      { angle: 2.7, length: 0.34, radius: 0.040 },
+      { angle: 3.8, length: 0.58, radius: 0.044 },
+      { angle: 4.9, length: 0.74, radius: 0.042 },
+      { angle: 5.8, length: 0.42, radius: 0.040 },
     ];
 
     dripConfigs.forEach((d) => {
-      const rad = 0.52 + (0.71 - 0.52) * Math.max(0, 0.68 - d.y);
-      const dx = Math.cos(d.angle) * rad;
-      const dz = Math.sin(d.angle) * rad;
-
-      // Organic stream body
-      const streamGeo = new THREE.CapsuleGeometry(d.radius, d.length, 10, 16);
+      const dripPts: THREE.Vector3[] = [];
+      const steps = 16;
+      const startY = 0.70;
+      for (let s = 0; s <= steps; s++) {
+        const u = s / steps;
+        const curY = startY - u * d.length;
+        const r = getOuterPotRadiusAtY(curY, outerWallPoints) + 0.014;
+        const curAngle = d.angle + Math.sin(u * Math.PI) * 0.035;
+        dripPts.push(new THREE.Vector3(Math.cos(curAngle) * r, curY, Math.sin(curAngle) * r));
+      }
+      const dripCurve = new THREE.CatmullRomCurve3(dripPts);
+      const streamGeo = new THREE.TubeGeometry(dripCurve, 20, d.radius * 0.75, 10, false);
       const stream = new THREE.Mesh(streamGeo, this.materials.butter);
-      stream.position.set(dx, d.y, dz);
-      stream.rotation.x = Math.sin(d.angle) * 0.16;
-      stream.rotation.z = -Math.cos(d.angle) * 0.16;
       stream.castShadow = true;
       makhanGroup.add(stream);
 
-      // Droplet teardrop bulb at bottom of stream
+      // Rounded teardrop droplet at bottom of stream
+      const tipPt = dripPts[dripPts.length - 1];
       const dropBead = new THREE.Mesh(
-        new THREE.SphereGeometry(d.radius * 1.35, 12, 12).scale(0.9, 1.25, 0.9),
+        new THREE.SphereGeometry(d.radius * 1.35, 14, 14).scale(0.85, 1.25, 0.85),
         this.materials.butter
       );
-      dropBead.position.set(dx * 1.02, d.y - d.length * 0.55, dz * 1.02);
+      dropBead.position.copy(tipPt);
+      dropBead.position.y -= d.radius * 0.35;
+      dropBead.castShadow = true;
       makhanGroup.add(dropBead);
     });
 
@@ -854,97 +1151,39 @@ export class VillageEnvironment {
     this.cowGroup.position.set(3.4, 0, 1.4);
     this.cowGroup.rotation.y = -0.75;
 
-    // Muscular Anatomical Zebu Torso & Skeletal Framework
+    // Muscular Anatomical Zebu Torso & Skeletal Framework (Seamless lofted manifold mesh)
     const torsoGroup = new THREE.Group();
 
-    // Contoured Barreled Ribcage (deep chest behind elbows, tapering into lean loin)
-    const barrelGeo = new THREE.CapsuleGeometry(0.60, 1.38, 24, 32);
-    barrelGeo.rotateZ(Math.PI / 2);
-    const barrel = new THREE.Mesh(barrelGeo, this.materials.cowWhite);
-    barrel.scale.set(1.15, 1.22, 0.94);
-    barrel.position.set(0.04, 0.98, 0);
-    barrel.castShadow = true;
-    barrel.receiveShadow = true;
-    torsoGroup.add(barrel);
-
-    // Sacred Gir Zebu Dorsal Hump (Kakud) perched majestically on the withers
-    // Leans gracefully forward over the shoulder blades, smoothly blending into the spine
-    const humpGeo = new THREE.SphereGeometry(0.42, 28, 28);
-    humpGeo.scale(0.86, 1.42, 0.74);
-    humpGeo.rotateZ(-0.28);
-    const hump = new THREE.Mesh(humpGeo, this.materials.cowWhite);
-    hump.position.set(0.34, 1.52, 0);
-    hump.castShadow = true;
-    torsoGroup.add(hump);
-
-    // Pelvic Girdle (Rump) with modeled iliac crests (hook bones) and pin bones
-    const pelvisGeo = new THREE.SphereGeometry(0.38, 20, 20);
-    pelvisGeo.scale(0.82, 1.12, 0.94);
-    const pelvis = new THREE.Mesh(pelvisGeo, this.materials.cowWhite);
-    pelvis.position.set(-0.66, 1.05, 0);
-    pelvis.castShadow = true;
-    torsoGroup.add(pelvis);
-
-    // Left & Right Muscular Shoulder Blades (Scapulae)
-    const leftShoulder = new THREE.Mesh(
-      new THREE.SphereGeometry(0.30, 16, 16).scale(0.85, 1.32, 0.65),
-      this.materials.cowWhite
-    );
-    leftShoulder.position.set(0.46, 0.92, 0.36);
-    torsoGroup.add(leftShoulder);
-
-    const rightShoulder = leftShoulder.clone();
-    rightShoulder.position.set(0.46, 0.92, -0.36);
-    torsoGroup.add(rightShoulder);
-
-    // Left & Right Stifle / Thigh Musculature on hindquarters
-    const leftThigh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.32, 16, 16).scale(0.88, 1.30, 0.70),
-      this.materials.cowWhite
-    );
-    leftThigh.position.set(-0.46, 0.88, 0.35);
-    torsoGroup.add(leftThigh);
-
-    const rightThigh = leftThigh.clone();
-    rightThigh.position.set(-0.46, 0.88, -0.35);
-    torsoGroup.add(rightThigh);
+    // Seamless continuous lofted bovine torso: withers, dorsal hump (Kakud), deep ribcage, loin, and pelvic rump
+    const torsoGeo = createAnatomicalZebuTorso(false);
+    const torsoMesh = new THREE.Mesh(torsoGeo, this.materials.cowWhite);
+    torsoMesh.castShadow = true;
+    torsoMesh.receiveShadow = true;
+    torsoGroup.add(torsoMesh);
 
     // Traditional piebald markings (soft warm ochre patches on coat)
     const spot1 = new THREE.Mesh(
-      new THREE.SphereGeometry(0.32, 12, 12).scale(1.25, 0.38, 0.8),
+      new THREE.SphereGeometry(0.32, 14, 14).scale(1.25, 0.38, 0.8),
       this.materials.terracotta
     );
-    spot1.position.set(0.14, 1.30, 0.38);
+    spot1.position.set(0.14, 1.28, 0.36);
     spot1.rotation.y = 0.2;
     torsoGroup.add(spot1);
 
     const spot2 = new THREE.Mesh(
-      new THREE.SphereGeometry(0.26, 10, 10).scale(1.15, 0.32, 0.65),
+      new THREE.SphereGeometry(0.26, 12, 12).scale(1.15, 0.32, 0.65),
       this.materials.terracotta
     );
-    spot2.position.set(-0.36, 1.24, -0.40);
+    spot2.position.set(-0.36, 1.22, -0.38);
     torsoGroup.add(spot2);
 
-    // Iconic Undulating Throat Dewlap (Galakambal) - characteristic flowing skin folds of Gir cattle
-    const dewlapFolds = new THREE.Group();
-    // Primary deep throat dewlap fold
-    const dewlapGeo1 = new THREE.CylinderGeometry(0.04, 0.18, 0.82, 12);
-    dewlapGeo1.scale(0.45, 1.0, 1.35);
-    dewlapGeo1.rotateZ(0.68);
-    const dewlap1 = new THREE.Mesh(dewlapGeo1, this.materials.cowWhite);
-    dewlap1.position.set(0.60, 0.76, 0);
-    dewlap1.castShadow = true;
-    dewlapFolds.add(dewlap1);
+    // Iconic Undulating Throat Dewlap (Galakambal) - characteristic multi-frequency flowing skin folds of Gir cattle
+    const dewlapGeo = createAnatomicalDewlap();
+    const dewlapMesh = new THREE.Mesh(dewlapGeo, this.materials.cowWhite);
+    dewlapMesh.castShadow = true;
+    dewlapMesh.receiveShadow = true;
+    torsoGroup.add(dewlapMesh);
 
-    // Secondary rippling brisket fold cascading between the forelegs
-    const dewlapGeo2 = new THREE.CylinderGeometry(0.03, 0.14, 0.58, 10);
-    dewlapGeo2.scale(0.4, 1.0, 1.2);
-    dewlapGeo2.rotateZ(0.85);
-    const dewlap2 = new THREE.Mesh(dewlapGeo2, this.materials.cowWhite);
-    dewlap2.position.set(0.48, 0.58, 0);
-    dewlapFolds.add(dewlap2);
-
-    torsoGroup.add(dewlapFolds);
     this.cowGroup.add(torsoGroup);
 
     // 4 Articulated Legs with Shoulders, Knees, Hocks, Pasterns, and Split Cloven Hooves
@@ -960,45 +1199,54 @@ export class VillageEnvironment {
       const xPos = isFront ? 0.44 : -0.48;
       const zPos = isFront ? 0.34 * zSign : 0.32 * zSign;
 
-      // Upper leg segment (Brachium / Thigh)
-      const upperGeo = new THREE.CylinderGeometry(isFront ? 0.11 : 0.13, 0.09, 0.44, 12);
+      // Upper leg segment (Brachium / Thigh) with natural muscular taper
+      const upperGeo = new THREE.CylinderGeometry(isFront ? 0.11 : 0.13, 0.09, 0.44, 14);
       const upper = new THREE.Mesh(upperGeo, this.materials.cowWhite);
       upper.position.y = 0.65;
+      upper.castShadow = true;
       leg.add(upper);
 
       // Carpal Knee / Hock Joint (Tarsus)
-      const kneeGeo = new THREE.SphereGeometry(isFront ? 0.10 : 0.115, 10, 10);
+      const kneeGeo = new THREE.SphereGeometry(isFront ? 0.10 : 0.115, 12, 12);
       const knee = new THREE.Mesh(kneeGeo, this.materials.cowWhite);
       knee.position.y = 0.44;
+      knee.castShadow = true;
       leg.add(knee);
 
       // Lower Shank / Cannon bone (Metacarpus / Metatarsus)
       const lowerGeo = new THREE.CylinderGeometry(0.082, 0.072, 0.38, 12);
       const lower = new THREE.Mesh(lowerGeo, this.materials.cowWhite);
       lower.position.y = 0.25;
+      lower.castShadow = true;
       leg.add(lower);
 
       // Fetlock Joint
-      const fetlock = new THREE.Mesh(new THREE.SphereGeometry(0.078, 10, 10), this.materials.cowWhite);
+      const fetlock = new THREE.Mesh(new THREE.SphereGeometry(0.078, 12, 12), this.materials.cowWhite);
       fetlock.position.y = 0.10;
+      fetlock.castShadow = true;
       leg.add(fetlock);
 
       // Pastern (coronet band)
-      const pasternGeo = new THREE.CylinderGeometry(0.065, 0.072, 0.06, 10);
+      const pasternGeo = new THREE.CylinderGeometry(0.065, 0.072, 0.06, 12);
       const pastern = new THREE.Mesh(pasternGeo, this.materials.cowWhite);
       pastern.position.y = 0.065;
+      pastern.castShadow = true;
       leg.add(pastern);
 
-      // Dual-claw Anatomical Cloven Hoof (split into medial and lateral digits)
-      const clawGeo = new THREE.BoxGeometry(0.058, 0.085, 0.068);
+      // Dual-claw Anatomical Cloven Hoof (split into medial and lateral rounded digits)
+      const clawGeo = new THREE.CylinderGeometry(0.028, 0.035, 0.075, 12);
+      clawGeo.scale(0.82, 1.0, 1.25);
+
       const leftClaw = new THREE.Mesh(clawGeo, hornHoofMat);
-      leftClaw.position.set(0.015, 0.038, 0.038);
-      leftClaw.rotation.y = 0.08;
+      leftClaw.position.set(0.016, 0.038, 0.032);
+      leftClaw.rotation.set(-0.06, 0.08, 0.04);
+      leftClaw.castShadow = true;
       leg.add(leftClaw);
 
       const rightClaw = new THREE.Mesh(clawGeo, hornHoofMat);
-      rightClaw.position.set(0.015, 0.038, -0.038);
-      rightClaw.rotation.y = -0.08;
+      rightClaw.position.set(0.016, 0.038, -0.032);
+      rightClaw.rotation.set(0.06, -0.08, 0.04);
+      rightClaw.castShadow = true;
       leg.add(rightClaw);
 
       leg.position.set(xPos, 0, zPos);
@@ -1018,14 +1266,16 @@ export class VillageEnvironment {
     tailStemGeo.rotateX(0.18);
     const tailStem = new THREE.Mesh(tailStemGeo, this.materials.cowWhite);
     tailStem.position.set(-0.06, -0.38, 0);
+    tailStem.castShadow = true;
     tailGroup.add(tailStem);
 
     // Silky long hair tuft (switch)
-    const tuftGeo = new THREE.ConeGeometry(0.075, 0.36, 10);
+    const tuftGeo = new THREE.ConeGeometry(0.075, 0.36, 12);
     tuftGeo.scale(0.7, 1.0, 1.35);
     const tuft = new THREE.Mesh(tuftGeo, this.materials.cowWhite);
     tuft.position.set(-0.10, -0.86, 0);
     tuft.rotation.x = Math.PI;
+    tuft.castShadow = true;
     tailGroup.add(tuft);
     this.cowGroup.add(tailGroup);
 
@@ -1034,52 +1284,21 @@ export class VillageEnvironment {
     this.cowHead.name = 'CowHeadGroup';
     this.cowHead.position.set(0.86, 1.28, 0);
 
-    // Muscular arched neck junction
-    const neckMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.28, 0.38, 0.48, 16).rotateZ(-Math.PI / 4),
-      this.materials.cowWhite
-    );
-    neckMesh.position.set(-0.16, -0.08, 0);
-    this.cowHead.add(neckMesh);
+    // Seamless continuous lofted bovine skull: cranium, domed Gir forehead, eye sockets, and muzzle
+    const headGeo = createAnatomicalZebuHead(false);
+    const headMesh = new THREE.Mesh(headGeo, this.materials.cowWhite);
+    headMesh.castShadow = true;
+    headMesh.receiveShadow = true;
+    this.cowHead.add(headMesh);
 
-    // Bovine Cranium / Skull
-    const skullMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.38, 20, 20).scale(1.18, 0.95, 0.85),
-      this.materials.cowWhite
-    );
-    this.cowHead.add(skullMesh);
-
-    // Signature Gir Convex Domed Forehead (High rounded brow of Gir cattle)
-    const girForehead = new THREE.Mesh(
-      new THREE.SphereGeometry(0.34, 18, 18).scale(1.22, 0.95, 0.78),
-      this.materials.cowWhite
-    );
-    girForehead.position.set(0.12, 0.16, 0);
-    this.cowHead.add(girForehead);
-
-    // Supraorbital brow ridges sheltering the eyes
-    const leftBrow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.14, 10, 10).scale(1.4, 0.4, 0.6),
-      this.materials.cowWhite
-    );
-    leftBrow.position.set(0.18, 0.18, 0.26);
-    leftBrow.rotation.y = 0.2;
-    this.cowHead.add(leftBrow);
-
-    const rightBrow = leftBrow.clone();
-    rightBrow.position.set(0.18, 0.18, -0.26);
-    rightBrow.rotation.y = -0.2;
-    this.cowHead.add(rightBrow);
-
-    // Soft Velvety Pinkish-Taupe Muzzle with Sculpted Nostrils & Mouth
-    const muzzleGroup = new THREE.Group();
-    muzzleGroup.position.set(0.38, -0.12, 0);
-
-    const snout = new THREE.Mesh(
-      new THREE.SphereGeometry(0.25, 18, 18).scale(1.2, 0.74, 0.88),
+    // Velvety soft pinkish-taupe muzzle pad overlay
+    const muzzleOverlay = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18, 16, 16).scale(1.15, 0.72, 0.82),
       this.materials.cowMuzzle
     );
-    muzzleGroup.add(snout);
+    muzzleOverlay.position.set(0.42, -0.12, 0);
+    muzzleOverlay.castShadow = true;
+    this.cowHead.add(muzzleOverlay);
 
     // Sculpted Left & Right Nostril Cavities with flared outer wings
     const nostrilMat = new THREE.MeshBasicMaterial({ color: 0x3d1a1a });
@@ -1087,21 +1306,12 @@ export class VillageEnvironment {
       new THREE.SphereGeometry(0.045, 10, 10).scale(0.6, 1.0, 1.4),
       nostrilMat
     );
-    leftNostril.position.set(0.24, -0.02, 0.11);
-    muzzleGroup.add(leftNostril);
+    leftNostril.position.set(0.52, -0.10, 0.09);
+    this.cowHead.add(leftNostril);
 
     const rightNostril = leftNostril.clone();
-    rightNostril.position.set(0.24, -0.02, -0.11);
-    muzzleGroup.add(rightNostril);
-
-    // Gentle lower jaw and chin
-    const lowerJaw = new THREE.Mesh(
-      new THREE.BoxGeometry(0.24, 0.09, 0.28),
-      this.materials.cowMuzzle
-    );
-    lowerJaw.position.set(0.10, -0.12, 0);
-    muzzleGroup.add(lowerJaw);
-    this.cowHead.add(muzzleGroup);
+    rightNostril.position.set(0.52, -0.10, -0.09);
+    this.cowHead.add(rightNostril);
 
     // Majestic Swept-Back Gir Lyre Horns with Polished Brass Finials (Singhoti)
     const createLyreHorn = (isLeft: boolean) => {
@@ -1111,20 +1321,21 @@ export class VillageEnvironment {
       // Authentic Gir lyre horn curve points: sweeps back from forehead, curves gracefully outward and upward
       const hornCurvePoints = [
         new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(-0.06, 0.18, 0.12 * zSign),
-        new THREE.Vector3(-0.10, 0.36, 0.20 * zSign),
-        new THREE.Vector3(0.02, 0.50, 0.14 * zSign),
-        new THREE.Vector3(0.10, 0.58, 0.04 * zSign),
+        new THREE.Vector3(-0.08, 0.16, 0.14 * zSign),
+        new THREE.Vector3(-0.12, 0.34, 0.22 * zSign),
+        new THREE.Vector3(0.00, 0.48, 0.15 * zSign),
+        new THREE.Vector3(0.12, 0.56, 0.04 * zSign),
       ];
       const hornCurve = new THREE.CatmullRomCurve3(hornCurvePoints);
-      const hornGeo = new THREE.TubeGeometry(hornCurve, 28, 0.058, 12, false);
+      const hornGeo = new THREE.TubeGeometry(hornCurve, 32, 0.052, 14, false);
       const hornMesh = new THREE.Mesh(hornGeo, this.materials.cowHorns);
+      hornMesh.castShadow = true;
       hornGroup.add(hornMesh);
 
       // Ridged growth rings near the horn base
       for (let r = 0; r < 3; r++) {
         const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(0.059 + r * 0.002, 0.008, 6, 16),
+          new THREE.TorusGeometry(0.054 + r * 0.002, 0.008, 6, 16),
           this.materials.cowHorns
         );
         ring.position.set(-0.02 * r, 0.06 + r * 0.06, 0.04 * r * zSign);
@@ -1136,7 +1347,7 @@ export class VillageEnvironment {
       finial.position.copy(hornCurvePoints[4]);
       hornGroup.add(finial);
 
-      hornGroup.position.set(-0.06, 0.34, 0.20 * zSign);
+      hornGroup.position.set(-0.06, 0.32, 0.18 * zSign);
       return hornGroup;
     };
 
@@ -1149,7 +1360,7 @@ export class VillageEnvironment {
       const zSign = isLeft ? 1 : -1;
 
       // Upper and lower eyelid rim
-      const lidGeo = new THREE.TorusGeometry(0.075, 0.016, 6, 16, Math.PI);
+      const lidGeo = new THREE.TorusGeometry(0.075, 0.016, 8, 20, Math.PI);
       const lid = new THREE.Mesh(lidGeo, this.materials.cowWhite);
       lid.position.set(0.02, 0.03, 0);
       lid.rotation.z = -0.15;
@@ -1170,7 +1381,7 @@ export class VillageEnvironment {
       glint.position.set(0.042, 0.024, 0.028 * zSign);
       eyeGroup.add(glint);
 
-      eyeGroup.position.set(0.20, 0.12, 0.30 * zSign);
+      eyeGroup.position.set(0.18, 0.12, 0.26 * zSign);
       return eyeGroup;
     };
 
@@ -1183,21 +1394,22 @@ export class VillageEnvironment {
       const zSign = isLeft ? 1 : -1;
 
       // Long pendulous outer ear shell
-      const earShellGeo = new THREE.ConeGeometry(0.10, 0.42, 10);
-      earShellGeo.scale(1.0, 1.0, 0.42);
+      const earShellGeo = new THREE.ConeGeometry(0.095, 0.46, 14);
+      earShellGeo.scale(1.0, 1.0, 0.38);
       const earShell = new THREE.Mesh(earShellGeo, this.materials.cowWhite);
+      earShell.castShadow = true;
       ear.add(earShell);
 
       // Inner soft pink velvety canal lining
       const innerLining = new THREE.Mesh(
-        new THREE.ConeGeometry(0.075, 0.34, 8).scale(1.0, 1.0, 0.25),
+        new THREE.ConeGeometry(0.072, 0.38, 10).scale(1.0, 1.0, 0.22),
         this.materials.cowMuzzle
       );
-      innerLining.position.set(0, 0, 0.016 * zSign);
+      innerLining.position.set(0, -0.02, 0.014 * zSign);
       ear.add(innerLining);
 
-      ear.position.set(-0.16, 0.22, 0.36 * zSign);
-      ear.rotation.set(-1.15 * zSign, 0.24, -0.34);
+      ear.position.set(-0.16, 0.18, 0.32 * zSign);
+      ear.rotation.set(-1.22 * zSign, 0.22, -0.32);
       return ear;
     };
 
@@ -1214,7 +1426,7 @@ export class VillageEnvironment {
       new THREE.CapsuleGeometry(0.026, 0.14, 8, 10),
       this.materials.marigoldYellow
     );
-    tilakChandan.position.set(0.34, 0.18, 0);
+    tilakChandan.position.set(0.30, 0.18, 0);
     tilakChandan.rotation.z = -0.25;
     this.cowHead.add(tilakChandan);
 
@@ -1222,7 +1434,7 @@ export class VillageEnvironment {
       new THREE.SphereGeometry(0.022, 10, 10),
       new THREE.MeshBasicMaterial({ color: 0xdc2626 })
     );
-    tilakSindoor.position.set(0.35, 0.18, 0);
+    tilakSindoor.position.set(0.31, 0.18, 0);
     this.cowHead.add(tilakSindoor);
 
     // Festive Marigold Flower Garland (Genda Haar) draped over neck & hump
@@ -1280,51 +1492,49 @@ export class VillageEnvironment {
     this.calfGroup.position.set(4.6, 0, 2.3);
     this.calfGroup.rotation.y = -1.8;
 
-    // Chubby baby body
-    const calfBodyGeo = new THREE.CapsuleGeometry(0.36, 0.76, 16, 20);
-    calfBodyGeo.rotateZ(Math.PI / 2);
-    const calfBody = new THREE.Mesh(calfBodyGeo, this.materials.cowWhite);
-    calfBody.position.y = 0.44;
-    calfBody.castShadow = true;
-    this.calfGroup.add(calfBody);
-
-    // Tiny emerging baby dorsal hump bud
-    const calfHump = new THREE.Mesh(
-      new THREE.SphereGeometry(0.14, 10, 10).scale(0.85, 1.2, 0.75),
-      this.materials.cowWhite
-    );
-    calfHump.position.set(0.16, 0.76, 0);
-    this.calfGroup.add(calfHump);
+    // Seamless continuous lofted baby calf torso
+    const calfTorsoGeo = createAnatomicalZebuTorso(true);
+    const calfTorsoMesh = new THREE.Mesh(calfTorsoGeo, this.materials.cowWhite);
+    calfTorsoMesh.castShadow = true;
+    calfTorsoMesh.receiveShadow = true;
+    this.calfGroup.add(calfTorsoMesh);
 
     // Baby coat spot
     const calfSpot = new THREE.Mesh(
       new THREE.SphereGeometry(0.20, 10, 10).scale(1.25, 0.38, 0.75),
       this.materials.terracotta
     );
-    calfSpot.position.set(0.08, 0.64, 0.22);
+    calfSpot.position.set(0.08, 0.60, 0.22);
     this.calfGroup.add(calfSpot);
 
-    // Dainty little baby legs with cloven hooves
+    // Dainty little baby legs with anatomical cloven hooves
     const calfLegPositions = [
-      [0.26, 0.20, 0.22],
-      [0.26, 0.20, -0.22],
-      [-0.26, 0.20, 0.22],
-      [-0.26, 0.20, -0.22],
+      [0.26, 0.20, 0.20],
+      [0.26, 0.20, -0.20],
+      [-0.26, 0.20, 0.20],
+      [-0.26, 0.20, -0.20],
     ];
     calfLegPositions.forEach(([clx, cly, clz]) => {
       const cLeg = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.058, 0.048, 0.38, 10),
+        new THREE.CylinderGeometry(0.052, 0.042, 0.36, 10),
         this.materials.cowWhite
       );
       cLeg.position.set(clx, cly, clz);
+      cLeg.castShadow = true;
       this.calfGroup.add(cLeg);
 
-      const cHoof = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.048, 0.058, 0.065, 10),
-        hornHoofMat
-      );
-      cHoof.position.set(clx, 0.03, clz);
-      this.calfGroup.add(cHoof);
+      // Baby cloven hoof with dual digits
+      const babyClawGeo = new THREE.CylinderGeometry(0.018, 0.024, 0.055, 10);
+      babyClawGeo.scale(0.8, 1.0, 1.2);
+      const bClaw1 = new THREE.Mesh(babyClawGeo, hornHoofMat);
+      bClaw1.position.set(clx + 0.01, 0.025, clz + 0.016);
+      bClaw1.castShadow = true;
+      this.calfGroup.add(bClaw1);
+
+      const bClaw2 = new THREE.Mesh(babyClawGeo, hornHoofMat);
+      bClaw2.position.set(clx + 0.01, 0.025, clz - 0.016);
+      bClaw2.castShadow = true;
+      this.calfGroup.add(bClaw2);
     });
 
     // Playful baby tail
@@ -1333,59 +1543,60 @@ export class VillageEnvironment {
       this.materials.cowWhite
     );
     calfTail.position.set(-0.46, 0.42, 0);
+    calfTail.castShadow = true;
     this.calfGroup.add(calfTail);
 
-    // Sculpted Baby Calf Head Group (animated idle head nod)
+    // Seamless continuous lofted Baby Calf Head Group (animated idle head nod)
     this.calfHead = new THREE.Group();
     this.calfHead.position.set(0.46, 0.66, 0);
 
-    const babySkull = new THREE.Mesh(
-      new THREE.SphereGeometry(0.25, 16, 16).scale(1.12, 0.96, 0.86),
-      this.materials.cowWhite
-    );
-    this.calfHead.add(babySkull);
+    const babyHeadGeo = createAnatomicalZebuHead(true);
+    const babyHeadMesh = new THREE.Mesh(babyHeadGeo, this.materials.cowWhite);
+    babyHeadMesh.castShadow = true;
+    babyHeadMesh.receiveShadow = true;
+    this.calfHead.add(babyHeadMesh);
 
-    // Soft pink baby muzzle
+    // Soft pink baby muzzle overlay
     const babyMuzzle = new THREE.Mesh(
-      new THREE.SphereGeometry(0.15, 12, 12).scale(1.18, 0.76, 0.88),
+      new THREE.SphereGeometry(0.12, 12, 12).scale(1.18, 0.76, 0.88),
       this.materials.cowMuzzle
     );
-    babyMuzzle.position.set(0.22, -0.06, 0);
+    babyMuzzle.position.set(0.24, -0.06, 0);
     this.calfHead.add(babyMuzzle);
 
     // Tiny emerging velvet horn buds (nubs)
     const nubGeo = new THREE.SphereGeometry(0.030, 8, 8);
     const leftNub = new THREE.Mesh(nubGeo, this.materials.cowHorns);
-    leftNub.position.set(-0.02, 0.24, 0.11);
+    leftNub.position.set(-0.02, 0.22, 0.10);
     this.calfHead.add(leftNub);
 
     const rightNub = leftNub.clone();
-    rightNub.position.set(-0.02, 0.24, -0.11);
+    rightNub.position.set(-0.02, 0.22, -0.10);
     this.calfHead.add(rightNub);
 
     // Sweet large curious baby eyes
     const babyEyeMat = new THREE.MeshBasicMaterial({ color: 0x09090b });
     const leftBabyEye = new THREE.Mesh(new THREE.SphereGeometry(0.050, 10, 10), babyEyeMat);
-    leftBabyEye.position.set(0.12, 0.08, 0.19);
+    leftBabyEye.position.set(0.12, 0.08, 0.17);
     this.calfHead.add(leftBabyEye);
 
     const leftGlint = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-    leftGlint.position.set(0.14, 0.10, 0.20);
+    leftGlint.position.set(0.14, 0.10, 0.18);
     this.calfHead.add(leftGlint);
 
     const rightBabyEye = leftBabyEye.clone();
-    rightBabyEye.position.set(0.12, 0.08, -0.19);
+    rightBabyEye.position.set(0.12, 0.08, -0.17);
     this.calfHead.add(rightBabyEye);
 
     // Soft floppy baby ears
     const babyEarGeo = new THREE.ConeGeometry(0.065, 0.24, 8).scale(1, 1, 0.38);
     const leftBabyEar = new THREE.Mesh(babyEarGeo, this.materials.cowWhite);
-    leftBabyEar.position.set(-0.08, 0.14, 0.23);
+    leftBabyEar.position.set(-0.08, 0.14, 0.20);
     leftBabyEar.rotation.set(-1.1, 0.2, -0.2);
     this.calfHead.add(leftBabyEar);
 
     const rightBabyEar = leftBabyEar.clone();
-    rightBabyEar.position.set(-0.08, 0.14, -0.23);
+    rightBabyEar.position.set(-0.08, 0.14, -0.20);
     rightBabyEar.rotation.set(1.1, -0.2, -0.2);
     this.calfHead.add(rightBabyEar);
 
@@ -1402,7 +1613,7 @@ export class VillageEnvironment {
       new THREE.SphereGeometry(0.040, 10, 10),
       new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.85, roughness: 0.2 })
     );
-    silverBell.position.set(-0.10, -0.28, 0);
+    silverBell.position.set(-0.10, -0.26, 0);
     this.calfHead.add(silverBell);
 
     this.calfGroup.add(this.calfHead);
@@ -1661,37 +1872,48 @@ export class VillageEnvironment {
       new THREE.Vector2(0.09, 0.29),
       new THREE.Vector2(0.001, 0.25),
     ];
-    const miniPotGeo = new THREE.LatheGeometry(miniProfilePoints, 32);
+    const miniSpline = new THREE.SplineCurve(miniProfilePoints);
+    const smoothMiniProfile = miniSpline.getPoints(64);
+    const miniPotGeo = new THREE.LatheGeometry(smoothMiniProfile, 48);
+    miniPotGeo.computeVertexNormals();
     const miniPotMesh = new THREE.Mesh(miniPotGeo, this.materials.terracotta);
     miniPotMesh.castShadow = true;
     miniPotGroup.add(miniPotMesh);
 
     // Auspicious yellow thread around mini pot neck
     const miniKalawa = new THREE.Mesh(
-      new THREE.TorusGeometry(0.095, 0.008, 6, 20),
+      new THREE.TorusGeometry(0.095, 0.008, 6, 24),
       this.materials.marigoldYellow
     );
     miniKalawa.rotation.x = Math.PI / 2;
     miniKalawa.position.y = 0.24;
     miniPotGroup.add(miniKalawa);
 
-    // Overflowing whipped butter
-    const miniButterMound = new THREE.Mesh(
-      new THREE.SphereGeometry(0.10, 16, 16).scale(1.15, 0.65, 1.15),
-      this.materials.butter
-    );
-    miniButterMound.position.y = 0.28;
+    // Overflowing sculpted whipped butter
+    const miniButterGeo = createSculptedButterDome(0.10);
+    const miniButterMound = new THREE.Mesh(miniButterGeo, this.materials.butter);
+    miniButterMound.position.y = 0.26;
     miniButterMound.castShadow = true;
     miniPotGroup.add(miniButterMound);
 
-    // Cute butter drip trickling down
-    const miniDrip = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.015, 0.12, 6, 8),
+    // Cute curved butter drip trickling down
+    const miniDripSplinePts = [
+      new THREE.Vector3(0.09, 0.28, 0.03),
+      new THREE.Vector3(0.12, 0.22, 0.04),
+      new THREE.Vector3(0.13, 0.16, 0.04),
+      new THREE.Vector3(0.12, 0.10, 0.04),
+    ];
+    const miniDripCurve = new THREE.CatmullRomCurve3(miniDripSplinePts);
+    const miniDripGeo = new THREE.TubeGeometry(miniDripCurve, 12, 0.012, 8, false);
+    const miniDrip = new THREE.Mesh(miniDripGeo, this.materials.butter);
+    miniPotGroup.add(miniDrip);
+
+    const miniDripDrop = new THREE.Mesh(
+      new THREE.SphereGeometry(0.016, 8, 8).scale(0.9, 1.2, 0.9),
       this.materials.butter
     );
-    miniDrip.position.set(0.11, 0.20, 0.04);
-    miniDrip.rotation.z = -0.2;
-    miniPotGroup.add(miniDrip);
+    miniDripDrop.position.set(0.12, 0.09, 0.04);
+    miniPotGroup.add(miniDripDrop);
 
     this.cuteKrishnaProcedural.add(miniPotGroup);
   }
