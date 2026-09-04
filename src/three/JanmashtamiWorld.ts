@@ -22,7 +22,7 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "Midnight in sacred Gokul",
     quote: "Under the silvery embrace of the Janmashtami moon, a tranquil village awaits its divine play.",
     tagline: "Scroll or explore through Krishna's little world",
-    camPos: new THREE.Vector3(0, 7.5, 12.0),
+    camPos: new THREE.Vector3(0, 8.0, 13.5),
     targetPos: new THREE.Vector3(0, 1.5, 0),
     lightWarmth: 0.35,
   },
@@ -32,7 +32,7 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "The Sacred Pathway",
     quote: "Mud-plastered cottages, terracotta eaves, and earthen paths scented with rain and kadamba blossoms.",
     tagline: "Follow the stone pathway into the courtyard",
-    camPos: new THREE.Vector3(-1.8, 3.2, 7.2),
+    camPos: new THREE.Vector3(-2.2, 3.5, 8.5),
     targetPos: new THREE.Vector3(-0.4, 1.4, 0.5),
     lightWarmth: 0.5,
   },
@@ -42,8 +42,8 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "The Enchanting Boy of Vrindavan",
     quote: "Adorned with the iridescent peacock feather and a golden bansuri whose sweet notes mesmerize the three worlds.",
     tagline: "Click Krishna to hear the melodious bansuri",
-    camPos: new THREE.Vector3(0, 2.2, 2.6),
-    targetPos: new THREE.Vector3(0, 1.8, 0),
+    camPos: new THREE.Vector3(0, 2.2, 3.8),
+    targetPos: new THREE.Vector3(0, 1.45, 0),
     lightWarmth: 0.7,
   },
   {
@@ -52,8 +52,8 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "The Sweet Butter Heist",
     quote: "High above the floor hangs the earthen matki, brimming with churned white butter irresistible to little Kanha.",
     tagline: "Tap the Matki to wobble and steal butter!",
-    camPos: new THREE.Vector3(-2.2, 2.7, 3.4),
-    targetPos: new THREE.Vector3(-2.2, 2.5, 1.2),
+    camPos: new THREE.Vector3(-2.2, 2.6, 5.0),
+    targetPos: new THREE.Vector3(-2.2, 2.35, 1.2),
     lightWarmth: 0.65,
   },
   {
@@ -62,8 +62,8 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "Loving Companions of Gokul",
     quote: "With gentle eyes and tinkling bells, the sacred cows rest peacefully listening to Krishna's tune.",
     tagline: "Touch the gentle cow to offer affection",
-    camPos: new THREE.Vector3(3.6, 1.8, 3.8),
-    targetPos: new THREE.Vector3(3.6, 1.1, 1.6),
+    camPos: new THREE.Vector3(5.2, 2.5, 5.4),
+    targetPos: new THREE.Vector3(3.9, 0.95, 1.8),
     lightWarmth: 0.6,
   },
   {
@@ -72,8 +72,8 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "Waters of Devotion",
     quote: "Soft moonbeams ripple across serene blue currents, carrying floating lotus blooms and glowing prayer diyas.",
     tagline: "Watch the water ripples and floating lotuses",
-    camPos: new THREE.Vector3(0, 2.8, -7.5),
-    targetPos: new THREE.Vector3(0, 0.2, -12),
+    camPos: new THREE.Vector3(0, 4.4, -4.6),
+    targetPos: new THREE.Vector3(0, 0.2, -16.0),
     lightWarmth: 0.45,
   },
   {
@@ -82,8 +82,8 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "Cute Bal Krishna on the Swing",
     quote: "Adorned with sweet marigolds and jasmine, cute Little Kanha sways joyously in the Vrindavan evening breeze.",
     tagline: "Tap the swing or Cute Krishna to gently sway the Jhula",
-    camPos: new THREE.Vector3(0, 2.5, -2.4),
-    targetPos: new THREE.Vector3(0, 2.0, -4.8),
+    camPos: new THREE.Vector3(0, 2.6, -0.6),
+    targetPos: new THREE.Vector3(0, 2.1, -4.8),
     lightWarmth: 0.8,
   },
   {
@@ -92,8 +92,8 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "Floor of Festivity",
     quote: "Sacred patterns drawn in vibrant natural pigments and encircled by radiant clay lamps.",
     tagline: "Move your cursor to witness the divine glow",
-    camPos: new THREE.Vector3(0, 4.2, 2.2),
-    targetPos: new THREE.Vector3(0, 0.1, 0.2),
+    camPos: new THREE.Vector3(0, 5.0, 3.0),
+    targetPos: new THREE.Vector3(0, 0.05, 0.1),
     lightWarmth: 0.8,
   },
   {
@@ -102,8 +102,8 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "Happy Krishna Janmashtami",
     quote: "The divine moment of celebration. May joy, righteousness, and pure love illuminate every home.",
     tagline: "Click 'Flower Shower' to shower marigold petals",
-    camPos: new THREE.Vector3(0, 2.8, 4.5),
-    targetPos: new THREE.Vector3(0, 1.8, 0),
+    camPos: new THREE.Vector3(0, 2.7, 5.6),
+    targetPos: new THREE.Vector3(0, 1.5, 0),
     lightWarmth: 0.9,
   },
   {
@@ -112,8 +112,8 @@ export const SCENES: CameraWaypoint[] = [
     subtitle: "A Message from Kanha",
     quote: "May your life resonate with the sweetness of Krishna's flute and the boundless grace of love.",
     tagline: "Click 'Receive Blessing' for a personal gift of grace",
-    camPos: new THREE.Vector3(0, 2.05, 1.9),
-    targetPos: new THREE.Vector3(0, 2.05, 0.2),
+    camPos: new THREE.Vector3(0, 2.1, 3.0),
+    targetPos: new THREE.Vector3(0, 1.7, 0.1),
     lightWarmth: 1.0,
   },
 ];
@@ -181,7 +181,7 @@ export class JanmashtamiWorld {
     // 1. Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x070b19);
-    this.scene.fog = new THREE.FogExp2(0x070b19, 0.024);
+    this.scene.fog = new THREE.FogExp2(0x070b19, 0.013);
 
     // 2. Camera
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
@@ -203,7 +203,7 @@ export class JanmashtamiWorld {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 1.28;
     container.appendChild(this.renderer.domElement);
 
     // 4. Add 3D Objects
@@ -232,15 +232,15 @@ export class JanmashtamiWorld {
   }
 
   private setupLighting() {
-    // 1. Village ambient light (soft twilight with slight warm saffron undertone)
-    this.ambientLight = new THREE.AmbientLight(0x38bdf8, 0.45);
+    // 1. Village ambient light (luminous celestial twilight for clean, clear visibility across all models)
+    this.ambientLight = new THREE.AmbientLight(0x7dd3fc, 0.68);
     this.scene.add(this.ambientLight);
 
     const moonPos = this.village.moonPos; // Sacred Moon position in the sky (4.2, 9.8, -15)
     const krishnaTargetPos = new THREE.Vector3(0, 1.45, 0);
 
     // 2. Global Directional moonlight originating from the Moon
-    this.dirLight = new THREE.DirectionalLight(0xe0f2fe, 1.35);
+    this.dirLight = new THREE.DirectionalLight(0xe0f2fe, 1.45);
     this.dirLight.position.copy(moonPos);
     this.dirLight.castShadow = true;
     this.dirLight.shadow.mapSize.width = 1024;
@@ -254,8 +254,32 @@ export class JanmashtamiWorld {
     this.dirLight.shadow.bias = -0.001;
     this.scene.add(this.dirLight);
 
-    // 3. Dedicated Celestial Spotlight emitted directly from the Moon onto Lord Krishna
-    this.moonSpotLight = new THREE.SpotLight(0xdbeafe, 4.5, 40, 0.32, 0.75, 1.0);
+    // 3. Left Village Flank Fill Light (warm saffron golden glow illuminating cottages, Matki, and left perimeter)
+    const leftSideLight = new THREE.DirectionalLight(0xfef3c7, 0.95);
+    leftSideLight.position.set(-16, 9, 8);
+    this.scene.add(leftSideLight);
+
+    // 4. Right Village Flank Fill Light (luminous pastoral glow illuminating Gomati cow, calf, and right cottages)
+    const rightSideLight = new THREE.DirectionalLight(0xe0f2fe, 0.85);
+    rightSideLight.position.set(16, 8, 7);
+    this.scene.add(rightSideLight);
+
+    // 5. Front Courtyard Fill Light (clean illumination eliminating harsh shadows on Krishna, Rangoli, and pathways)
+    const frontFillLight = new THREE.DirectionalLight(0xfffbeb, 0.70);
+    frontFillLight.position.set(0, 6, 12);
+    this.scene.add(frontFillLight);
+
+    // 6. Side Village Periphery Warm Point Lights (ensures village outskirts are vibrant and luminous)
+    const leftVillageGlow = new THREE.PointLight(0xfbbf24, 1.3, 16);
+    leftVillageGlow.position.set(-7.5, 3.2, 1.0);
+    this.scene.add(leftVillageGlow);
+
+    const rightVillageGlow = new THREE.PointLight(0xf59e0b, 1.3, 16);
+    rightVillageGlow.position.set(7.5, 3.2, 1.0);
+    this.scene.add(rightVillageGlow);
+
+    // 7. Dedicated Celestial Spotlight emitted directly from the Moon onto Lord Krishna (100% soft penumbra)
+    this.moonSpotLight = new THREE.SpotLight(0xdbeafe, 3.8, 45, 0.42, 1.0, 1.2);
     this.moonSpotLight.position.copy(moonPos);
     this.moonSpotLight.target = this.krishna.group;
     this.moonSpotLight.castShadow = true;
@@ -264,7 +288,7 @@ export class JanmashtamiWorld {
     this.moonSpotLight.shadow.bias = -0.0008;
     this.scene.add(this.moonSpotLight);
 
-    // 4. Ethereal Moon Rim Light accentuating Lord Krishna's divine form with silvery-blue lunar brilliance
+    // 8. Ethereal Moon Rim Light accentuating Lord Krishna's divine form with silvery-blue lunar brilliance
     this.krishnaMoonRimLight = new THREE.PointLight(0xa5f3fc, 2.6, 6.5);
     this.krishnaMoonRimLight.position.set(1.2, 2.6, -0.6);
     this.scene.add(this.krishnaMoonRimLight);
@@ -540,9 +564,9 @@ export class JanmashtamiWorld {
 
     // Adapt light warmth smoothly
     const warmth = waypoint.lightWarmth;
-    this.ambientLight.color.setHex(warmth > 0.6 ? 0xfef08a : 0x38bdf8);
-    this.ambientLight.intensity = 0.4 + warmth * 0.3;
-    this.festivePointLight.intensity = 1.0 + warmth * 1.5;
+    this.ambientLight.color.setHex(warmth > 0.6 ? 0xfef3c7 : 0x7dd3fc);
+    this.ambientLight.intensity = 0.62 + warmth * 0.22;
+    this.festivePointLight.intensity = 1.3 + warmth * 1.5;
 
     // Trigger specific scene audio chime
     if (index === 2) soundEngine.playFlutePhrase();

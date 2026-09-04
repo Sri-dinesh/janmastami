@@ -62,6 +62,7 @@ function createProceduralMoonTexture(): THREE.CanvasTexture {
   return texture;
 }
 
+// Generates an offscreen canvas texture with ultra-soft feathered radial glow for the moon corona
 function createProceduralMoonGlowTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -86,7 +87,6 @@ function createProceduralMoonGlowTexture(): THREE.CanvasTexture {
 }
 
 // Generates an offscreen canvas texture with traditional Indian Aipan / Pithha white rice-paste folk art
-
 function createAipanMotifTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -150,7 +150,6 @@ function createAipanMotifTexture(): THREE.CanvasTexture {
 }
 
 // Custom Yamuna River Flowing Water Shader Material
-
 function createYamunaWaterMaterial(moonPos: THREE.Vector3): THREE.ShaderMaterial {
   const moonDir = moonPos.clone().normalize();
   return new THREE.ShaderMaterial({
@@ -260,7 +259,6 @@ function createYamunaWaterMaterial(moonPos: THREE.Vector3): THREE.ShaderMaterial
   });
 }
 
-
 export class VillageEnvironment {
   public group: THREE.Group;
   private materials = createStandardMaterials();
@@ -285,9 +283,9 @@ export class VillageEnvironment {
   public diyaLights: THREE.PointLight[] = [];
   public lotusBlossoms: THREE.Group[] = [];
   public lotusData: Array<{ group: THREE.Group; baseX: number; baseZ: number; phase: number }> = [];
-  public waterMaterial?: THREE.ShaderMaterial;
   public waterMesh: THREE.Mesh;
   public waterGeometry: THREE.PlaneGeometry;
+  public waterMaterial?: THREE.ShaderMaterial;
   public waterInitialPositions: Float32Array;
   public floatingDiyas: Array<{
     group: THREE.Group;
