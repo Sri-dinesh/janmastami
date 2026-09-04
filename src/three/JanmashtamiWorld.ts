@@ -530,6 +530,25 @@ export class JanmashtamiWorld {
           return;
         }
 
+        if (
+          name === 'KrishnaFlute' ||
+          name === 'KrishnaFluteAltar' ||
+          name === 'KrishnaFluteModel' ||
+          name === 'KrishnaFluteMini' ||
+          name === 'KrishnaFluteJhula' ||
+          name === 'KrishnaFluteJhulaWrap' ||
+          name.includes('Flute') ||
+          hitObj === this.village.fluteGroup
+        ) {
+          soundEngine.playFlutePhrase();
+          this.particles.showerPetals();
+          this.onInteractionCallback?.(
+            'flute',
+            "The divine melody of Krishna's sacred bansuri fills Vrindavan with eternal bliss! 🎶✨"
+          );
+          return;
+        }
+
         if (name === 'KrishnaCharacter' || hitObj === this.krishna.group) {
           this.krishna.triggerBlessing();
           soundEngine.playFlutePhrase();

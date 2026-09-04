@@ -39,7 +39,7 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
   const [lighting, setLighting] = useState<LightingPreset>('temple');
-  const [activeModel, setActiveModel] = useState<'cute-krishna' | 'radha-krishna'>('cute-krishna');
+  const [activeModel, setActiveModel] = useState<'cute-krishna' | 'radha-krishna' | 'krisha-flute'>('cute-krishna');
   const [isBlessingActive, setIsBlessingActive] = useState<boolean>(false);
 
   // References to Three.js instances for dynamic control
@@ -59,7 +59,7 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
     petalVelocities: Float32Array;
     isPetalShowerActive: boolean;
     animFrameId: number | null;
-    loadGLTF?: (modelType: 'cute-krishna' | 'radha-krishna') => void;
+    loadGLTF?: (modelType: 'cute-krishna' | 'radha-krishna' | 'krisha-flute') => void;
   } | null>(null);
 
   // Initialize WebGL Three.js viewer whenever opened and not minimized
@@ -219,7 +219,7 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
 
     const loader = new GLTFLoader();
 
-    const loadGLTF = (modelType: 'cute-krishna' | 'radha-krishna') => {
+    const loadGLTF = (modelType: 'cute-krishna' | 'radha-krishna' | 'krisha-flute') => {
       // Clear previous model from scene
       while (modelGroup.children.length > 0) {
         modelGroup.remove(modelGroup.children[0]);
@@ -228,8 +228,18 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
       setLoadProgress(15);
       setLoadError(null);
 
-      const filePath = modelType === 'cute-krishna' ? '/cute-krishna.glb' : '/krishna-radha.glb';
-      const fallbackPath = modelType === 'cute-krishna' ? 'cute-krishna.glb' : undefined;
+      const filePath =
+        modelType === 'cute-krishna'
+          ? '/cute-krishna.glb'
+          : modelType === 'krisha-flute'
+          ? '/krisha-flute.glb'
+          : '/krishna-radha.glb';
+      const fallbackPath =
+        modelType === 'cute-krishna'
+          ? 'cute-krishna.glb'
+          : modelType === 'krisha-flute'
+          ? 'krisha-flute.glb'
+          : undefined;
 
       const handleSuccess = (gltf: any) => {
         const root = gltf.scene;
@@ -241,15 +251,24 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
         const center = new THREE.Vector3();
         box.getCenter(center);
 
-        // Scale model to standard height (~2.2 units)
-        const targetHeight = 2.2;
-        const scaleFactor = targetHeight / (size.y || 1);
+        // Scale model to standard height
+        const targetHeight = modelType === 'krisha-flute' ? 2.0 : 2.2;
+        const maxDim = modelType === 'krisha-flute' ? Math.max(size.x, size.y, size.z) || 1 : (size.y || 1);
+        const scaleFactor = targetHeight / maxDim;
         root.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
-        // Center on X and Z, set base right on top of lotus pedestal
-        root.position.x = -center.x * scaleFactor;
-        root.position.z = -center.z * scaleFactor;
-        root.position.y = -box.min.y * scaleFactor + 0.18;
+        if (modelType === 'krisha-flute') {
+          // Graceful tilt showing off carvings and tassels
+          root.rotation.set(0.18, 0.25, 0.35);
+          root.position.x = -center.x * scaleFactor;
+          root.position.z = -center.z * scaleFactor;
+          root.position.y = -box.min.y * scaleFactor + 0.35;
+        } else {
+          // Center on X and Z, set base right on top of lotus pedestal
+          root.position.x = -center.x * scaleFactor;
+          root.position.z = -center.z * scaleFactor;
+          root.position.y = -box.min.y * scaleFactor + 0.18;
+        }
 
         // Enable shadows and enhance materials
         root.traverse((child) => {
@@ -555,6 +574,8 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
               <h3 className="text-base sm:text-lg font-cinzel font-bold text-[#fef08a] truncate">
                 {activeModel === 'cute-krishna'
                   ? 'Cute Bal Krishna (Vrindavan Jhula)'
+                  : activeModel === 'krisha-flute'
+                  ? "Sri Krishna's Divine Bansuri (Flute)"
                   : 'Sri Sri Radha Krishna Jugal Jodi'}
               </h3>
             </div>
@@ -585,6 +606,17 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
                 title="Sri Radha Krishna on Altar"
               >
                 Sri Radha Krishna (Altar)
+              </button>
+              <button
+                onClick={() => setActiveModel('krisha-flute')}
+                className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+                  activeModel === 'krisha-flute'
+                    ? 'bg-amber-500 text-black font-semibold shadow-sm'
+                    : 'text-amber-200/70 hover:text-white'
+                }`}
+                title="Sacred Krishna Bansuri (Flute)"
+              >
+                Divine Bansuri (Flute)
               </button>
             </div>
             <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10 text-xs">
@@ -748,7 +780,11 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
               <div className="flex items-center justify-between pb-3 border-b border-white/10 text-xs">
                 <span className="text-slate-400">File Asset:</span>
                 <span className="font-mono text-[11px] text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-400/20">
-                  krishna+radha+3d+model.glb
+                  {activeModel === 'cute-krishna'
+                    ? 'cute-krishna.glb'
+                    : activeModel === 'krisha-flute'
+                    ? 'krisha-flute.glb'
+                    : 'krishna-radha.glb'}
                 </span>
               </div>
 

@@ -153,5 +153,25 @@ export const createStandardMaterials = () => {
       roughness: 0.88,
       metalness: 0.02,
     }),
+    makranaMarble: new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.22,
+      metalness: 0.04,
+    }),
+    crimsonVelvet: new THREE.MeshStandardMaterial({
+      color: 0x991b1b,
+      roughness: 0.55,
+      metalness: 0.08,
+    }),
+    zariGold: new THREE.MeshStandardMaterial({
+      color: 0xfbbf24,
+      metalness: 0.85,
+      roughness: 0.24,
+    }),
+    silver: new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0,
+      metalness: 0.90,
+      roughness: 0.18,
+    }),
   };
 };
