@@ -88,6 +88,61 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isBlessingOpen, isKrishnaModelOpen]);
 
+  // Mobile Touch Swipe navigation
+  useEffect(() => {
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (isOrbitMode || isBlessingOpen || isKrishnaModelOpen) return;
+      if (e.touches.length === 1) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (isOrbitMode || isBlessingOpen || isKrishnaModelOpen) return;
+      if (scrollLockRef.current) return;
+      if (e.changedTouches.length === 1) {
+        const deltaX = e.changedTouches[0].clientX - touchStartX;
+        const deltaY = e.changedTouches[0].clientY - touchStartY;
+        const absX = Math.abs(deltaX);
+        const absY = Math.abs(deltaY);
+
+        if (Math.max(absX, absY) > 45) {
+          scrollLockRef.current = true;
+          setTimeout(() => {
+            scrollLockRef.current = false;
+          }, 600);
+
+          if (absY > absX) {
+            // Swipe Up -> next, Swipe Down -> prev
+            if (deltaY < 0) {
+              worldRef.current?.nextScene();
+            } else {
+              worldRef.current?.prevScene();
+            }
+          } else {
+            // Swipe Left -> next, Swipe Right -> prev
+            if (deltaX < 0) {
+              worldRef.current?.nextScene();
+            } else {
+              worldRef.current?.prevScene();
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isOrbitMode, isBlessingOpen, isKrishnaModelOpen]);
+
   // Ensure background music plays smoothly on user interaction if sound is active
   useEffect(() => {
     const handleGesture = () => {

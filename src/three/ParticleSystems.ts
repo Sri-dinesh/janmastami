@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { isMobile } from '../utils/device.ts';
 
 // Generates an offscreen canvas texture for smooth circular glow particles (no square edges)
 function createRadialGlowTexture(innerRgb: string, outerRgb: string): THREE.CanvasTexture {
@@ -86,7 +87,7 @@ export class FestivalParticles {
   }
 
   private createStars() {
-    const starCount = 350;
+    const starCount = isMobile ? 100 : 350;
     const positions = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount; i++) {
       positions[i * 3] = (Math.random() - 0.5) * 80;
@@ -109,7 +110,7 @@ export class FestivalParticles {
   }
 
   private createFireflies() {
-    const count = 60;
+    const count = isMobile ? 16 : 60;
     this.fireflyPositions = new Float32Array(count * 3);
     this.fireflyVelocities = new Float32Array(count * 3);
 
@@ -149,7 +150,7 @@ export class FestivalParticles {
   }
 
   private createFlowerPetals() {
-    const count = 90;
+    const count = isMobile ? 22 : 90;
     this.petalPositions = new Float32Array(count * 3);
 
     for (let i = 0; i < count; i++) {
@@ -177,7 +178,7 @@ export class FestivalParticles {
   private createGoldenDust() {
     // Subtle ambient stardust around the courtyard perimeter and lower altar base
     // Exclude the direct sightline of Lord Krishna (center area 0,0)
-    const count = 80;
+    const count = isMobile ? 18 : 80;
     this.dustPositions = new Float32Array(count * 3);
 
     for (let i = 0; i < count; i++) {
@@ -213,6 +214,11 @@ export class FestivalParticles {
   }
 
   public update(time: number) {
+    // On mobile, throttle particle physics updates to 30fps to avoid GPU buffer re-upload bottlenecks
+    if (isMobile && Math.floor(time * 30) % 2 !== 0) {
+      return;
+    }
+
     // 1. Firefly organic wandering movement
     const fPos = this.fireflies.geometry.attributes.position.array as Float32Array;
     const fCount = fPos.length / 3;

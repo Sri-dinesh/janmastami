@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { createStandardMaterials, COLORS } from './materials.ts';
+import { isMobile } from '../utils/device.ts';
 
 export class KrishnaCharacter {
   public group: THREE.Group;
@@ -23,7 +24,7 @@ export class KrishnaCharacter {
   // Divine decorations for GLB
   private lotusPedestal: THREE.Group;
   private divineAuraRing: THREE.Mesh;
-  private auraPointLight: THREE.PointLight;
+  private auraPointLight?: THREE.PointLight;
 
   private blinkTimer: number = 0;
   private isBlinking: boolean = false;
@@ -67,9 +68,11 @@ export class KrishnaCharacter {
       new THREE.MeshBasicMaterial({ visible: false })
     );
 
-    this.auraPointLight = new THREE.PointLight(0xf59e0b, 1.6, 7);
-    this.auraPointLight.position.set(0, 2.35, 0.7);
-    this.group.add(this.auraPointLight);
+    if (!isMobile) {
+      this.auraPointLight = new THREE.PointLight(0xf59e0b, 1.6, 7);
+      this.auraPointLight.position.set(0, 2.35, 0.7);
+      this.group.add(this.auraPointLight);
+    }
 
     // Load the 3D GLB Model (krishna+radha+3d+model.glb)
     this.loadGlbModel();
@@ -397,8 +400,8 @@ export class KrishnaCharacter {
       root.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
+          mesh.castShadow = !isMobile;
+          mesh.receiveShadow = !isMobile;
           if (mesh.material) {
             const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
             mats.forEach((m) => {
@@ -457,10 +460,14 @@ export class KrishnaCharacter {
         this.blessingProgress += 0.015;
         const t = Math.sin(this.blessingProgress * Math.PI);
         this.glbGroup.position.y = breath + t * 0.08;
-        this.auraPointLight.intensity = 1.5 + t * 3.0;
+        if (this.auraPointLight) {
+          this.auraPointLight.intensity = 1.5 + t * 3.0;
+        }
         if (this.blessingProgress >= 1) {
           this.blessingActive = false;
-          this.auraPointLight.intensity = 1.5;
+          if (this.auraPointLight) {
+            this.auraPointLight.intensity = 1.5;
+          }
         }
       }
     } else {

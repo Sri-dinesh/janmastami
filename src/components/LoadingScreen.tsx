@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Moon, Flame } from 'lucide-react';
+import { isMobile } from '../utils/device.ts';
 
 interface LoadingScreenProps {
   onEnter: () => void;
@@ -10,14 +11,14 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onEnter }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    // Step progression for evocative Janmashtami sequence
-    const t1 = setTimeout(() => setStep(2), 700);
-    const t2 = setTimeout(() => setStep(3), 1500);
-    const t3 = setTimeout(() => setStep(4), 2200);
+    // Step progression for evocative Janmashtami sequence (snappier on mobile)
+    const t1 = setTimeout(() => setStep(2), isMobile ? 250 : 700);
+    const t2 = setTimeout(() => setStep(3), isMobile ? 550 : 1500);
+    const t3 = setTimeout(() => setStep(4), isMobile ? 950 : 2200);
     const t4 = setTimeout(() => {
       setStep(5);
       setIsLoaded(true);
-    }, 2900);
+    }, isMobile ? 1350 : 2900);
 
     return () => {
       clearTimeout(t1);

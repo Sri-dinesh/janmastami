@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { createStandardMaterials, COLORS } from './materials.ts';
+import { isMobile } from '../utils/device.ts';
 
 // Generates an offscreen canvas texture with realistic lunar maria & crater highlights
 function createProceduralMoonTexture(): THREE.CanvasTexture {
@@ -516,7 +517,7 @@ export class VillageEnvironment {
   public waterInitialPositions: Float32Array;
   public floatingDiyas: Array<{
     group: THREE.Group;
-    light: THREE.PointLight;
+    light?: THREE.PointLight;
     flame: THREE.Mesh;
     baseX: number;
     baseZ: number;
@@ -532,7 +533,7 @@ export class VillageEnvironment {
   public hangingLanterns: Array<{
     group: THREE.Group;
     lanternAssembly: THREE.Group;
-    light: THREE.PointLight;
+    light?: THREE.PointLight;
     glowMesh: THREE.Mesh;
     baseIntensity: number;
     baseEmissive: number;
@@ -1876,8 +1877,8 @@ export class VillageEnvironment {
       model.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
+          mesh.castShadow = !isMobile;
+          mesh.receiveShadow = !isMobile;
           mesh.name = 'RadhaKrishnaAltar';
           if (mesh.material) {
             const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -1902,20 +1903,23 @@ export class VillageEnvironment {
       proceduralBansuri.visible = false;
     };
 
-    loader.load(
-      '/krishna-radha.glb',
-      (gltf) => applyRadhaKrishnaGLB(gltf.scene),
-      undefined,
-      (err) => {
-        console.warn('Retrying krishna-radha.glb from local path:', err);
-        loader.load(
-          'krishna-radha.glb',
-          (gltf2) => applyRadhaKrishnaGLB(gltf2.scene),
-          undefined,
-          (err2) => console.error('Could not load krishna-radha.glb:', err2)
-        );
-      }
-    );
+    // Stagger loading of 15.8MB krishna-radha.glb to allow primary scene & hero model to render instantly
+    setTimeout(() => {
+      loader.load(
+        '/krishna-radha.glb',
+        (gltf) => applyRadhaKrishnaGLB(gltf.scene),
+        undefined,
+        (err) => {
+          console.warn('Retrying krishna-radha.glb from local path:', err);
+          loader.load(
+            'krishna-radha.glb',
+            (gltf2) => applyRadhaKrishnaGLB(gltf2.scene),
+            undefined,
+            (err2) => console.error('Could not load krishna-radha.glb:', err2)
+          );
+        }
+      );
+    }, isMobile ? 1200 : 300);
 
     // 5. Flanking Brass Diyas
     [-0.58, 0.58].forEach((dx, didx) => {
@@ -1936,10 +1940,12 @@ export class VillageEnvironment {
       diyaGroup.add(flame);
       this.diyaFlames.push(flame);
 
-      const dLight = new THREE.PointLight(0xffa500, 0.9, 2.5);
-      dLight.position.y = 0.08;
-      diyaGroup.add(dLight);
-      this.diyaLights.push(dLight);
+      if (!isMobile) {
+        const dLight = new THREE.PointLight(0xffa500, 0.9, 2.5);
+        dLight.position.y = 0.08;
+        diyaGroup.add(dLight);
+        this.diyaLights.push(dLight);
+      }
 
       this.diyas.push(diyaGroup);
       this.fluteGroup.add(diyaGroup);
@@ -2329,8 +2335,8 @@ export class VillageEnvironment {
       root.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
+          mesh.castShadow = !isMobile;
+          mesh.receiveShadow = !isMobile;
           if (mesh.material) {
             const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
             mats.forEach((m) => {
@@ -2354,27 +2360,29 @@ export class VillageEnvironment {
       }
     };
 
-    // Load from root/public path
-    loader.load(
-      '/cute-krishna.glb',
-      (gltf) => {
-        applyModel(gltf.scene);
-      },
-      undefined,
-      (err) => {
-        console.warn('Trying fallback path for cute-krishna.glb:', err);
-        loader.load(
-          'cute-krishna.glb',
-          (gltf) => {
-            applyModel(gltf.scene);
-          },
-          undefined,
-          (err2) => {
-            console.error('Error loading cute-krishna.glb from all paths:', err2);
-          }
-        );
-      }
-    );
+    // Stagger loading of cute-krishna.glb (Jhula is in Scene 6, procedural model is active immediately)
+    setTimeout(() => {
+      loader.load(
+        '/cute-krishna.glb',
+        (gltf) => {
+          applyModel(gltf.scene);
+        },
+        undefined,
+        (err) => {
+          console.warn('Trying fallback path for cute-krishna.glb:', err);
+          loader.load(
+            'cute-krishna.glb',
+            (gltf) => {
+              applyModel(gltf.scene);
+            },
+            undefined,
+            (err2) => {
+              console.error('Error loading cute-krishna.glb from all paths:', err2);
+            }
+          );
+        }
+      );
+    }, isMobile ? 2500 : 800);
   }
 
   private createYamunaRiver() {
@@ -2416,9 +2424,11 @@ export class VillageEnvironment {
       diyaFlame.position.set(px, 0.98, -7.5);
       riverGroup.add(diyaFlame);
 
-      const diyaGlow = new THREE.PointLight(0xff9922, 0.65, 4.2);
-      diyaGlow.position.set(px, 1.05, -7.5);
-      riverGroup.add(diyaGlow);
+      if (!isMobile) {
+        const diyaGlow = new THREE.PointLight(0xff9922, 0.65, 4.2);
+        diyaGlow.position.set(px, 1.05, -7.5);
+        riverGroup.add(diyaGlow);
+      }
     });
 
     // Riverbank natural smooth stones & pebbles along the water's edge
@@ -2440,8 +2450,10 @@ export class VillageEnvironment {
     riverbed.receiveShadow = true;
     riverGroup.add(riverbed);
 
-    // 3. Dynamic Flowing Yamuna Water Mesh with Custom Shader
-    this.waterGeometry = new THREE.PlaneGeometry(58, 22, 120, 50);
+    // 3. Dynamic Flowing Yamuna Water Mesh with Custom Shader (adapted resolution for mobile)
+    const segX = isMobile ? 32 : 120;
+    const segY = isMobile ? 16 : 50;
+    this.waterGeometry = new THREE.PlaneGeometry(58, 22, segX, segY);
     this.waterGeometry.rotateX(-Math.PI / 2);
     this.waterMaterial = createYamunaWaterMaterial(this.moonPos);
     this.waterMesh = new THREE.Mesh(this.waterGeometry, this.waterMaterial);
@@ -2519,10 +2531,13 @@ export class VillageEnvironment {
       flame.position.set(0, 0.11, 0);
       floatingDiyaGroup.add(flame);
 
-      // PointLight casting warm golden reflections on water surface
-      const waterLight = new THREE.PointLight(0xffaa33, 0.75, 4.0);
-      waterLight.position.set(0, 0.16, 0);
-      floatingDiyaGroup.add(waterLight);
+      // PointLight casting warm golden reflections on water surface (desktop only)
+      let waterLight: THREE.PointLight | undefined = undefined;
+      if (!isMobile) {
+        waterLight = new THREE.PointLight(0xffaa33, 0.75, 4.0);
+        waterLight.position.set(0, 0.16, 0);
+        floatingDiyaGroup.add(waterLight);
+      }
 
       riverGroup.add(floatingDiyaGroup);
 
@@ -2786,11 +2801,13 @@ export class VillageEnvironment {
       glow.position.y = 0.1;
       diya.add(glow);
 
-      // Dynamic warm point light
-      const light = new THREE.PointLight(0xffa500, 0.75, 4.2);
-      light.position.set(0, 0.2, 0);
-      diya.add(light);
-      this.diyaLights.push(light);
+      // Dynamic warm point light (on mobile, 1 representative point light for the entire courtyard)
+      if (!isMobile || idx === 0) {
+        const light = new THREE.PointLight(0xffa500, isMobile ? 1.1 : 0.75, isMobile ? 6.0 : 4.2);
+        light.position.set(0, 0.2, 0);
+        diya.add(light);
+        this.diyaLights.push(light);
+      }
 
       this.diyas.push(diya);
       this.group.add(diya);
@@ -3047,10 +3064,13 @@ export class VillageEnvironment {
     beadMesh.position.y = -0.29;
     lanternAssembly.add(beadMesh);
 
-    // 3. Soft Point Light Source with gentle decay
-    const light = new THREE.PointLight(lanternColor, baseIntensity, lightDistance, 1.8);
-    light.position.set(0, 0.02, 0);
-    lanternAssembly.add(light);
+    // 3. Soft Point Light Source with gentle decay (desktop only; emissive glowing mesh handles mobile)
+    let light: THREE.PointLight | undefined = undefined;
+    if (!isMobile) {
+      light = new THREE.PointLight(lanternColor, baseIntensity, lightDistance, 1.8);
+      light.position.set(0, 0.02, 0);
+      lanternAssembly.add(light);
+    }
 
     group.add(lanternAssembly);
     this.group.add(group);
@@ -3174,11 +3194,12 @@ export class VillageEnvironment {
       }
     }
 
-    // 4. Diya flicker animation
-    for (let d = 0; d < this.diyaFlames.length; d++) {
+    // 4. Diya flicker animation (optimized stride for mobile)
+    const diyaStep = isMobile ? 2 : 1;
+    for (let d = 0; d < this.diyaFlames.length; d += diyaStep) {
       const flame = this.diyaFlames[d];
       const light = this.diyaLights[d];
-      const flicker = 1 + Math.sin(time * 12 + d * 1.7) * 0.15 + (Math.random() - 0.5) * 0.08;
+      const flicker = 1 + Math.sin(time * 12 + d * 1.7) * 0.15;
       flame.scale.set(flicker, flicker * 1.1, flicker);
       if (light) {
         light.intensity = 0.75 * flicker;
@@ -3200,31 +3221,36 @@ export class VillageEnvironment {
     };
 
     // 6. Lotus blossoms dynamic bobbing & tilting with the flowing Yamuna waves
-    this.lotusData.forEach((item) => {
-      const waveY = getWaveY(item.baseX, item.baseZ, time);
-      item.group.position.y = 0.02 + waveY;
-      item.group.rotation.z = Math.sin(time * 1.5 + item.phase) * 0.045;
-      item.group.rotation.x = Math.cos(time * 1.2 + item.phase) * 0.035;
-      item.group.rotation.y += 0.001;
-    });
+    // On mobile, throttle wave physics calculations to alternating frames
+    if (!isMobile || Math.floor(time * 30) % 2 === 0) {
+      this.lotusData.forEach((item) => {
+        const waveY = getWaveY(item.baseX, item.baseZ, time);
+        item.group.position.y = 0.02 + waveY;
+        item.group.rotation.z = Math.sin(time * 1.5 + item.phase) * 0.045;
+        item.group.rotation.x = Math.cos(time * 1.2 + item.phase) * 0.035;
+        item.group.rotation.y += 0.001;
+      });
 
-    // Floating sacred leaf-diyas drifting down the Yamuna with flame reflections
-    this.floatingDiyas.forEach((diya) => {
-      const driftX = Math.sin(time * diya.speed + diya.phase) * 0.45;
-      const currentX = diya.baseX + driftX;
-      const currentZ = diya.baseZ + Math.cos(time * diya.speed * 0.75 + diya.phase) * 0.22;
-      diya.group.position.x = currentX;
-      diya.group.position.z = currentZ;
+      // Floating sacred leaf-diyas drifting down the Yamuna with flame reflections
+      this.floatingDiyas.forEach((diya) => {
+        const driftX = Math.sin(time * diya.speed + diya.phase) * 0.45;
+        const currentX = diya.baseX + driftX;
+        const currentZ = diya.baseZ + Math.cos(time * diya.speed * 0.75 + diya.phase) * 0.22;
+        diya.group.position.x = currentX;
+        diya.group.position.z = currentZ;
 
-      const waveY = getWaveY(currentX, currentZ, time);
-      diya.group.position.y = 0.02 + waveY;
-      diya.group.rotation.z = Math.sin(time * 2.2 + diya.phase) * 0.055;
-      diya.group.rotation.x = Math.cos(time * 1.8 + diya.phase) * 0.045;
+        const waveY = getWaveY(currentX, currentZ, time);
+        diya.group.position.y = 0.02 + waveY;
+        diya.group.rotation.z = Math.sin(time * 2.2 + diya.phase) * 0.055;
+        diya.group.rotation.x = Math.cos(time * 1.8 + diya.phase) * 0.045;
 
-      const flameFlicker = 1 + Math.sin(time * 14 + diya.phase) * 0.16 + (Math.random() - 0.5) * 0.05;
-      diya.flame.scale.set(flameFlicker, flameFlicker * 1.12, flameFlicker);
-      diya.light.intensity = 0.75 * flameFlicker;
-    });
+        const flameFlicker = 1 + Math.sin(time * 14 + diya.phase) * 0.16 + (Math.random() - 0.5) * 0.05;
+        diya.flame.scale.set(flameFlicker, flameFlicker * 1.12, flameFlicker);
+        if (diya.light) {
+          diya.light.intensity = 0.75 * flameFlicker;
+        }
+      });
+    }
 
     // 7. Moon halos gentle celestial shimmer
     this.moonHalos.forEach((halo, idx) => {
@@ -3243,7 +3269,9 @@ export class VillageEnvironment {
         (Math.random() - 0.5) * 0.035;
 
       const currentIntensity = Math.max(0.2, lantern.baseIntensity * (1 + flicker));
-      lantern.light.intensity = currentIntensity;
+      if (lantern.light) {
+        lantern.light.intensity = currentIntensity;
+      }
 
       // Synchronized glowing parchment emissive radiance
       const mat = lantern.glowMesh.material as THREE.MeshStandardMaterial;

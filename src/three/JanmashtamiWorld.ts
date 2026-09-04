@@ -4,6 +4,7 @@ import { VillageEnvironment } from './VillageElements.ts';
 import { FestivalParticles } from './ParticleSystems.ts';
 import { soundEngine } from '../utils/audio.ts';
 import { firePetalConfetti } from '../utils/confetti.ts';
+import { isMobile } from '../utils/device.ts';
 
 export interface CameraWaypoint {
   id: number;
@@ -135,7 +136,7 @@ export class JanmashtamiWorld {
   private dirLight: THREE.DirectionalLight;
   private festivePointLight: THREE.PointLight;
   private moonSpotLight: THREE.SpotLight;
-  private krishnaMoonRimLight: THREE.PointLight;
+  private krishnaMoonRimLight?: THREE.PointLight;
   private moonBeamGroup: THREE.Group;
   private moonBeamMat?: THREE.ShaderMaterial;
   private moonBeamDust?: THREE.Points;
@@ -193,15 +194,17 @@ export class JanmashtamiWorld {
     this.currentLookAt.copy(initialWaypoint.targetPos);
     this.camera.lookAt(this.currentLookAt);
 
-    // 3. Renderer
+    // 3. Renderer with Mobile Optimization
     this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: !isMobile,
       powerPreference: 'high-performance',
       alpha: false,
+      precision: isMobile ? 'mediump' : 'highp',
     });
     this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
+    const maxDpr = isMobile ? Math.min(window.devicePixelRatio, 1.0) : Math.min(window.devicePixelRatio, 2);
+    this.renderer.setPixelRatio(maxDpr);
+    this.renderer.shadowMap.enabled = !isMobile;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.28;
@@ -243,25 +246,27 @@ export class JanmashtamiWorld {
     // 2. Global Directional moonlight originating from the Moon
     this.dirLight = new THREE.DirectionalLight(0xe0f2fe, 1.45);
     this.dirLight.position.copy(moonPos);
-    this.dirLight.castShadow = true;
-    this.dirLight.shadow.mapSize.width = 1024;
-    this.dirLight.shadow.mapSize.height = 1024;
-    this.dirLight.shadow.camera.near = 0.5;
-    this.dirLight.shadow.camera.far = 45;
-    this.dirLight.shadow.camera.left = -14;
-    this.dirLight.shadow.camera.right = 14;
-    this.dirLight.shadow.camera.top = 14;
-    this.dirLight.shadow.camera.bottom = -14;
-    this.dirLight.shadow.bias = -0.001;
+    this.dirLight.castShadow = !isMobile;
+    if (!isMobile) {
+      this.dirLight.shadow.mapSize.width = 1024;
+      this.dirLight.shadow.mapSize.height = 1024;
+      this.dirLight.shadow.camera.near = 0.5;
+      this.dirLight.shadow.camera.far = 45;
+      this.dirLight.shadow.camera.left = -14;
+      this.dirLight.shadow.camera.right = 14;
+      this.dirLight.shadow.camera.top = 14;
+      this.dirLight.shadow.camera.bottom = -14;
+      this.dirLight.shadow.bias = -0.001;
+    }
     this.scene.add(this.dirLight);
 
     // 3. Left Village Flank Fill Light (warm saffron golden glow illuminating cottages, Matki, and left perimeter)
-    const leftSideLight = new THREE.DirectionalLight(0xfef3c7, 0.95);
+    const leftSideLight = new THREE.DirectionalLight(0xfef3c7, isMobile ? 1.05 : 0.95);
     leftSideLight.position.set(-16, 9, 8);
     this.scene.add(leftSideLight);
 
     // 4. Right Village Flank Fill Light (luminous pastoral glow illuminating Gomati cow, calf, and right cottages)
-    const rightSideLight = new THREE.DirectionalLight(0xe0f2fe, 0.85);
+    const rightSideLight = new THREE.DirectionalLight(0xe0f2fe, isMobile ? 0.95 : 0.85);
     rightSideLight.position.set(16, 8, 7);
     this.scene.add(rightSideLight);
 
@@ -270,29 +275,30 @@ export class JanmashtamiWorld {
     frontFillLight.position.set(0, 6, 12);
     this.scene.add(frontFillLight);
 
-    // 6. Side Village Periphery Warm Point Lights (ensures village outskirts are vibrant and luminous)
-    const leftVillageGlow = new THREE.PointLight(0xfbbf24, 1.3, 16);
-    leftVillageGlow.position.set(-7.5, 3.2, 1.0);
-    this.scene.add(leftVillageGlow);
+    // 6. Side Village Periphery Warm Point Lights (only on desktop; directional lights provide optimal fill on mobile)
+    if (!isMobile) {
+      const leftVillageGlow = new THREE.PointLight(0xfbbf24, 1.3, 16);
+      leftVillageGlow.position.set(-7.5, 3.2, 1.0);
+      this.scene.add(leftVillageGlow);
 
-    const rightVillageGlow = new THREE.PointLight(0xf59e0b, 1.3, 16);
-    rightVillageGlow.position.set(7.5, 3.2, 1.0);
-    this.scene.add(rightVillageGlow);
+      const rightVillageGlow = new THREE.PointLight(0xf59e0b, 1.3, 16);
+      rightVillageGlow.position.set(7.5, 3.2, 1.0);
+      this.scene.add(rightVillageGlow);
+    }
 
     // 7. Dedicated Celestial Spotlight emitted directly from the Moon onto Lord Krishna (100% soft penumbra)
     this.moonSpotLight = new THREE.SpotLight(0xdbeafe, 3.8, 45, 0.42, 1.0, 1.2);
     this.moonSpotLight.position.copy(moonPos);
     this.moonSpotLight.target = this.krishna.group;
-    this.moonSpotLight.castShadow = true;
-    this.moonSpotLight.shadow.mapSize.width = 1024;
-    this.moonSpotLight.shadow.mapSize.height = 1024;
-    this.moonSpotLight.shadow.bias = -0.0008;
+    this.moonSpotLight.castShadow = false;
     this.scene.add(this.moonSpotLight);
 
     // 8. Ethereal Moon Rim Light accentuating Lord Krishna's divine form with silvery-blue lunar brilliance
-    this.krishnaMoonRimLight = new THREE.PointLight(0xa5f3fc, 2.6, 6.5);
-    this.krishnaMoonRimLight.position.set(1.2, 2.6, -0.6);
-    this.scene.add(this.krishnaMoonRimLight);
+    if (!isMobile) {
+      this.krishnaMoonRimLight = new THREE.PointLight(0xa5f3fc, 2.6, 6.5);
+      this.krishnaMoonRimLight.position.set(1.2, 2.6, -0.6);
+      this.scene.add(this.krishnaMoonRimLight);
+    }
 
     // 5. Volumetric Ethereal Moonlight Rays cascading from the celestial Moon straight down to Lord Krishna
     // Multi-angle intersecting soft-feathered fan planes with analytical Gaussian blur
@@ -376,16 +382,17 @@ export class JanmashtamiWorld {
       fog: false,
     });
 
-    // 8 intersecting fan planes spanning 180 degrees create a seamless, blurred volumetric ray shaft from every angle
-    const rayPlaneGeo = new THREE.PlaneGeometry(5.6, dist, 1, 32);
-    for (let i = 0; i < 8; i++) {
+    // Intersecting fan planes create a seamless, blurred volumetric ray shaft
+    const rayCount = isMobile ? 3 : 8;
+    const rayPlaneGeo = new THREE.PlaneGeometry(5.6, dist, 1, isMobile ? 4 : 32);
+    for (let i = 0; i < rayCount; i++) {
       const plane = new THREE.Mesh(rayPlaneGeo, this.moonBeamMat);
-      plane.rotation.y = (i / 8) * Math.PI;
+      plane.rotation.y = (i / rayCount) * Math.PI;
       this.moonBeamGroup.add(plane);
     }
 
     // Celestial moonlight dust motes slowly drifting inside the rays
-    const dustCount = 36;
+    const dustCount = isMobile ? 12 : 36;
     const dustGeo = new THREE.BufferGeometry();
     this.moonDustPositions = new Float32Array(dustCount * 3);
     for (let i = 0; i < dustCount; i++) {
@@ -671,6 +678,8 @@ export class JanmashtamiWorld {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
+    const maxDpr = isMobile ? Math.min(window.devicePixelRatio, 1.0) : Math.min(window.devicePixelRatio, 2);
+    this.renderer.setPixelRatio(maxDpr);
   }
 
   private animate = () => {
@@ -688,15 +697,18 @@ export class JanmashtamiWorld {
       this.moonBeamMat.uniforms.uOpacity.value = 0.24 + Math.sin(time * 1.4) * 0.035;
     }
     if (this.moonBeamDust && this.moonDustPositions) {
-      const posAttr = this.moonBeamDust.geometry.attributes.position as THREE.BufferAttribute;
-      const count = posAttr.count;
-      for (let i = 0; i < count; i++) {
-        let y = posAttr.getY(i);
-        y -= 0.012; // slow drift downwards towards Krishna
-        if (y < -9.0) y = 9.0;
-        posAttr.setY(i, y);
+      if (!isMobile || Math.floor(time * 30) % 2 === 0) {
+        const posAttr = this.moonBeamDust.geometry.attributes.position as THREE.BufferAttribute;
+        const count = posAttr.count;
+        const step = isMobile ? 2 : 1;
+        for (let i = 0; i < count; i += step) {
+          let y = posAttr.getY(i);
+          y -= isMobile ? 0.024 : 0.012;
+          if (y < -9.0) y = 9.0;
+          posAttr.setY(i, y);
+        }
+        posAttr.needsUpdate = true;
       }
-      posAttr.needsUpdate = true;
     }
     if (this.moonSpotLight) {
       this.moonSpotLight.intensity = 3.8 + Math.sin(time * 1.5) * 0.3;
