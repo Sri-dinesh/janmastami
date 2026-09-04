@@ -75,21 +75,23 @@ export const createStandardMaterials = () => {
       roughness: 0.8,
     }),
     butter: new THREE.MeshStandardMaterial({
-      color: COLORS.butterCream,
-      roughness: 0.3,
+      color: 0xfffdf2,
+      roughness: 0.18,
+      metalness: 0.04,
     }),
     cowWhite: new THREE.MeshStandardMaterial({
-      color: COLORS.cowWhite,
-      roughness: 0.6,
+      color: 0xfaf8f5,
+      roughness: 0.52,
+      metalness: 0.02,
     }),
     cowMuzzle: new THREE.MeshStandardMaterial({
-      color: COLORS.cowMuzzle,
-      roughness: 0.7,
+      color: 0xefb8af,
+      roughness: 0.65,
     }),
     cowHorns: new THREE.MeshStandardMaterial({
-      color: COLORS.cowHorns,
-      roughness: 0.5,
-      metalness: 0.2,
+      color: 0x272e38,
+      roughness: 0.42,
+      metalness: 0.12,
     }),
     grass: new THREE.MeshStandardMaterial({
       color: COLORS.grassGreen,
@@ -132,19 +134,19 @@ export const createStandardMaterials = () => {
       side: THREE.DoubleSide,
     }),
     terracotta: new THREE.MeshStandardMaterial({
-      color: 0x9a3412,
-      roughness: 0.72,
-      metalness: 0.05,
+      color: 0xa84118,
+      roughness: 0.65,
+      metalness: 0.03,
     }),
     jute: new THREE.MeshStandardMaterial({
-      color: 0xc8965a,
+      color: 0xb88648,
       roughness: 0.92,
       metalness: 0.05,
     }),
     brassGold: new THREE.MeshStandardMaterial({
       color: 0xf59e0b,
-      metalness: 0.85,
-      roughness: 0.25,
+      metalness: 0.88,
+      roughness: 0.22,
     }),
     sandstone: new THREE.MeshStandardMaterial({
       color: 0xd97706,
