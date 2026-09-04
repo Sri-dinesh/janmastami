@@ -3,6 +3,7 @@ import { KrishnaCharacter } from './KrishnaModel.ts';
 import { VillageEnvironment } from './VillageElements.ts';
 import { FestivalParticles } from './ParticleSystems.ts';
 import { soundEngine } from '../utils/audio.ts';
+import { firePetalConfetti } from '../utils/confetti.ts';
 
 export interface CameraWaypoint {
   id: number;
@@ -638,6 +639,7 @@ export class JanmashtamiWorld {
     this.particles.showerPetals();
     soundEngine.playTempleBell();
     this.krishna.triggerBlessing();
+    firePetalConfetti();
   }
 
   public triggerBlessing() {

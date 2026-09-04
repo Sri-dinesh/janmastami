@@ -18,6 +18,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { soundEngine } from '../utils/audio.ts';
+import { firePetalConfetti } from '../utils/confetti.ts';
 
 interface KrishnaGLBViewerModalProps {
   isOpen: boolean;
@@ -153,18 +154,11 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
     pedestalGroup.position.y = 0.09;
     scene.add(pedestalGroup);
 
-    // 7. Divine Aura / Halo disk behind head
-    const haloGeo = new THREE.RingGeometry(0.7, 0.95, 32);
-    const haloMat = new THREE.MeshBasicMaterial({
-      color: 0xfef08a,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.7,
-      blending: THREE.AdditiveBlending,
-    });
-    const haloMesh = new THREE.Mesh(haloGeo, haloMat);
-    haloMesh.position.set(0, 1.85, -0.3);
-    scene.add(haloMesh);
+    // 7. Divine Aura / Halo disk (omitted to keep clean 3D silhouette without white ring)
+    const haloMesh = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      new THREE.MeshBasicMaterial({ visible: false })
+    );
 
     // 8. Petal Particle System (with smooth circular soft texture, no square artifacts)
     const petalCanvas = document.createElement('canvas');
@@ -471,6 +465,7 @@ export const KrishnaGLBViewerModal: React.FC<KrishnaGLBViewerModalProps> = ({
 
   const handleShowerPetals = () => {
     soundEngine.playTempleBell();
+    firePetalConfetti();
     // Reset all petals to top
     const state = threeStateRef.current;
     if (state) {

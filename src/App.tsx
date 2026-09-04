@@ -6,6 +6,7 @@ import { HUD } from './components/HUD.tsx';
 import { BlessingModal } from './components/BlessingModal.tsx';
 import { KrishnaGLBViewerModal } from './components/KrishnaGLBViewerModal.tsx';
 import { soundEngine } from './utils/audio.ts';
+import { firePetalConfetti } from './utils/confetti.ts';
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -130,7 +131,8 @@ export default function App() {
 
   const handleShowerPetals = () => {
     worldRef.current?.triggerFlowerShower();
-    showNotice('shower', 'Marigold and jasmine petals shower across Gokul!');
+    firePetalConfetti();
+    showNotice('shower', 'Marigold and jasmine petals shower across Gokul! 🌸✨');
   };
 
   const handleOpenBlessing = () => {

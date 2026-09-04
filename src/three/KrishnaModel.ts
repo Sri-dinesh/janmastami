@@ -62,18 +62,10 @@ export class KrishnaCharacter {
     this.lotusPedestal.position.y = 0.11;
     this.group.add(this.lotusPedestal);
 
-    // Divine Aura Halo (positioned to frame the head of the enlarged flute idol)
-    const haloGeo = new THREE.RingGeometry(0.75, 1.05, 32);
-    const haloMat = new THREE.MeshBasicMaterial({
-      color: 0xfef08a,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.65,
-      blending: THREE.AdditiveBlending,
-    });
-    this.divineAuraRing = new THREE.Mesh(haloGeo, haloMat);
-    this.divineAuraRing.position.set(0, 2.45, -0.22);
-    this.group.add(this.divineAuraRing);
+    this.divineAuraRing = new THREE.Mesh(
+      new THREE.BufferGeometry(),
+      new THREE.MeshBasicMaterial({ visible: false })
+    );
 
     this.auraPointLight = new THREE.PointLight(0xf59e0b, 1.6, 7);
     this.auraPointLight.position.set(0, 2.35, 0.7);
@@ -460,22 +452,15 @@ export class KrishnaCharacter {
       // Lotus pedestal slow divine rotation
       this.lotusPedestal.rotation.y = time * 0.04;
 
-      // Divine aura halo shimmer
-      this.divineAuraRing.rotation.z += 0.005;
-      const auraMat = this.divineAuraRing.material as THREE.MeshBasicMaterial;
-      auraMat.opacity = 0.65 + Math.sin(time * 3) * 0.15;
-
       // Blessing gesture
       if (this.blessingActive) {
         this.blessingProgress += 0.015;
         const t = Math.sin(this.blessingProgress * Math.PI);
         this.glbGroup.position.y = breath + t * 0.08;
         this.auraPointLight.intensity = 1.5 + t * 3.0;
-        this.divineAuraRing.scale.set(1 + t * 0.35, 1 + t * 0.35, 1);
         if (this.blessingProgress >= 1) {
           this.blessingActive = false;
           this.auraPointLight.intensity = 1.5;
-          this.divineAuraRing.scale.set(1, 1, 1);
         }
       }
     } else {
